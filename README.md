@@ -127,6 +127,15 @@ Optional secrets: `GEMINI_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY`,
 `DRIVE_FOLDER_ID` (the id in a Drive folder URL — the pipeline drops the day's
 `.mp4` + `.json` there for review).
 
+> **Drive uploads are off by default.** Google refuses to grant
+> `youtube.upload` and `drive.file` in the same unverified-app consent
+> request ("scopes that cannot be requested together"), so `get-token.mjs`
+> only requests `youtube.upload`. If you still want the Drive review copy,
+> mint a *second* token with only `drive.file` scope, store it as a separate
+> secret, and point `drive_upload.py` at those credentials instead — the
+> daily video is already reviewable via YouTube Studio's Private tab and the
+> workflow's build artifact, so this is a nice-to-have, not required.
+
 Optional **Variables** (same screen, "Variables" tab) to tune without code:
 `VOICE`, `GEO`, `YT_CATEGORY_ID`, `PRIVACY`, `WHISPER_MODEL`.
 

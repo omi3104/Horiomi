@@ -72,10 +72,12 @@ FPS = 30
 TARGET_SECONDS_MIN = 20
 TARGET_SECONDS_MAX = 58
 
-GOOGLE_SCOPES = [
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/drive.file",
-]
+# NOTE: youtube.upload and drive.file cannot be granted in the same
+# unverified-app consent request, so the default token only carries
+# youtube.upload. Drive review copies (drive_upload.py) simply no-op with a
+# clear log line unless you mint a second token with drive.file and wire it
+# up separately - see README.
+GOOGLE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 

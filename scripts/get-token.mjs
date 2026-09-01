@@ -21,10 +21,12 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout, env } from "node:process";
 
 const REDIRECT = "http://localhost:8765";
-const SCOPES = [
-  "https://www.googleapis.com/auth/youtube.upload",
-  "https://www.googleapis.com/auth/drive.file",
-].join(" ");
+// Google will not grant youtube.upload and drive.file in the same unverified
+// consent request ("scopes that cannot be requested together"). YouTube
+// upload is the one that matters, so that's all we request here. See
+// README "Optional: Google Drive review copies" for adding drive.file later
+// via its own separate token if you want that feature too.
+const SCOPES = ["https://www.googleapis.com/auth/youtube.upload"].join(" ");
 
 function openBrowser(url) {
   const cmd =
