@@ -17,6 +17,8 @@
 
 import http from "node:http";
 import { exec } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { pushSecrets, ghTokenFromGitCredential } from "./push-secrets.mjs";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, env } from "node:process";
 
@@ -105,24 +107,49 @@ const server = http.createServer(async (req, res) => {
     }
 
     res.writeHead(200, { "content-type": "text/html" });
-    res.end("<h2>All set. Copy the values from your terminal, then close this tab.</h2>");
+    res.end("<h2>All set. You can close this tab and return to the terminal.</h2>");
 
-    console.log("\n============================================================");
-    console.log(" Paste these into GitHub -> repo -> Settings ->");
-    console.log(" Secrets and variables -> Actions -> New repository secret");
-    console.log("============================================================");
-    console.log("GOOGLE_CLIENT_ID      =", CLIENT_ID);
-    console.log("GOOGLE_CLIENT_SECRET  =", CLIENT_SECRET);
-    console.log("GOOGLE_REFRESH_TOKEN  =", data.refresh_token);
-    console.log("============================================================\n");
+    const secrets = {
+      GOOGLE_CLIENT_ID: CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: CLIENT_SECRET,
+      GOOGLE_REFRESH_TOKEN: data.refresh_token,
+    };
+
+    // 1) write a local .env (git-ignored) so `python -m src.pipeline` works locally
+    try {
+      writeFileSync(
+        new URL("../.env", import.meta.url),
+        Object.entries(secrets).map(([k, v]) => `${k}=${v}`).join("\n") + "\n"
+      );
+      console.log("\nWrote .env (local, git-ignored).");
+    } catch (e) {
+      console.log("\nCould not write .env:", e.message);
+    }
+
+    // 2) push the same values straight to GitHub Actions secrets
+    const repo = process.env.GH_REPO || "omi3104/YT-Agent";
+    try {
+      const ghToken = process.env.GITHUB_TOKEN || (await ghTokenFromGitCredential());
+      if (!ghToken) throw new Error("no GitHub token from git credential / GITHUB_TOKEN");
+      console.log(`Setting GitHub Actions secrets on ${repo}:`);
+      await pushSecrets(repo, ghToken, secrets);
+      console.log("\nGitHub secrets are set. Setup complete - nothing else to do.\n");
+    } catch (e) {
+      console.log("\nCould not auto-set GitHub secrets:", e.message);
+      console.log("Add them by hand at Settings -> Secrets and variables -> Actions:");
+      console.log("  GOOGLE_CLIENT_ID      =", CLIENT_ID);
+      console.log("  GOOGLE_CLIENT_SECRET  =", CLIENT_SECRET);
+      console.log("  GOOGLE_REFRESH_TOKEN  =", data.refresh_token);
+    }
   } catch (e) {
     res.writeHead(500).end("token exchange failed - see terminal");
     console.error("\nToken exchange failed:\n", e.message);
-    server.close();
-    process.exit(1);
+    server.close(() => process.exit(1));
+    setTimeout(() => process.exit(1), 1000).unref();
+    return;
   }
-  server.close();
-  process.exit(0);
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 1000).unref();
 });
 
 server.listen(8765, () => {

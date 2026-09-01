@@ -1,0 +1,99 @@
+#!/usr/bin/env node
+/**
+ * Set GitHub Actions repository secrets via the REST API (libsodium sealed box).
+ *
+ * Used two ways:
+ *   - imported by get-token.mjs to push the freshly-minted values automatically
+ *   - standalone:  node scripts/push-secrets.mjs
+ *     (reads KEY=VALUE lines from ../.env and pushes GOOGLE_CLIENT_ID,
+ *      GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN)
+ *
+ * Auth: uses $GITHUB_TOKEN if set, otherwise whatever `git credential fill`
+ * returns for github.com (Git Credential Manager). The token needs `repo` scope.
+ * Target repo: $GH_REPO or the default below.
+ */
+import sodium from "libsodium-wrappers";
+import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
+
+const DEFAULT_REPO = "omi3104/YT-Agent";
+
+export function ghTokenFromGitCredential() {
+  return new Promise((resolve) => {
+    const child = execFile("git", ["credential", "fill"], (err, stdout) => {
+      if (err) return resolve(null);
+      const m = stdout.match(/^password=(.*)$/m);
+      resolve(m ? m[1].trim() : null);
+    });
+    child.stdin.write("protocol=https\nhost=github.com\n\n");
+    child.stdin.end();
+  });
+}
+
+async function api(path, token, opts = {}) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    ...opts,
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "yt-shorts-agent-setup",
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`${opts.method || "GET"} ${path} -> ${res.status}: ${await res.text()}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+export async function pushSecrets(repo, token, secrets) {
+  await sodium.ready;
+  const pk = await api(`/repos/${repo}/actions/secrets/public-key`, token);
+  const binkey = sodium.from_base64(pk.key, sodium.base64_variants.ORIGINAL);
+  for (const [name, value] of Object.entries(secrets)) {
+    if (!value) {
+      console.log(`  - ${name}: skipped (no value)`);
+      continue;
+    }
+    const encrypted_value = sodium.to_base64(
+      sodium.crypto_box_seal(sodium.from_string(value), binkey),
+      sodium.base64_variants.ORIGINAL
+    );
+    await api(`/repos/${repo}/actions/secrets/${name}`, token, {
+      method: "PUT",
+      body: JSON.stringify({ encrypted_value, key_id: pk.key_id }),
+    });
+    console.log(`  - ${name}: set`);
+  }
+}
+
+function readEnv() {
+  const text = readFileSync(new URL("../.env", import.meta.url), "utf8");
+  const out = {};
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#") || !t.includes("=")) continue;
+    const i = t.indexOf("=");
+    out[t.slice(0, i).trim()] = t.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+  }
+  return out;
+}
+
+// --- standalone entrypoint ---
+if (process.argv[1] && process.argv[1].replace(/\\/g, "/").endsWith("scripts/push-secrets.mjs")) {
+  const repo = process.env.GH_REPO || DEFAULT_REPO;
+  const token = process.env.GITHUB_TOKEN || (await ghTokenFromGitCredential());
+  if (!token) {
+    console.error("No GitHub token (set GITHUB_TOKEN or sign in so `git credential fill` works).");
+    process.exit(1);
+  }
+  const env = readEnv();
+  console.log(`Setting secrets on ${repo}:`);
+  await pushSecrets(repo, token, {
+    GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_REFRESH_TOKEN: env.GOOGLE_REFRESH_TOKEN,
+  });
+  console.log("Done.");
+  process.exit(0);
+}

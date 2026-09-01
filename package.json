@@ -1,0 +1,24 @@
+{
+  "name": "yt-shorts-agent",
+  "version": "1.0.0",
+  "description": "A hands-off pipeline that every day:",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omi3104/YT-Agent.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/omi3104/YT-Agent/issues"
+  },
+  "homepage": "https://github.com/omi3104/YT-Agent#readme",
+  "dependencies": {
+    "libsodium-wrappers": "^0.8.4"
+  }
+}
