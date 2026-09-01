@@ -1,0 +1,7 @@
+Drop ONE background-music file here (mp3 / m4a / wav) and it will be mixed in
+quietly under the voiceover. Leave this folder empty for voice-only videos.
+
+Use only music you are licensed to use. Free options:
+  - YouTube Audio Library  (Studio -> Audio library)  - free, cleared for YouTube
+  - Pixabay Music  (https://pixabay.com/music/)        - free, no attribution
+  - Free Music Archive CC0 tracks

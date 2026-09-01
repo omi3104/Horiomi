@@ -1,0 +1,30 @@
+# secrets / local env
+.env
+client_secret*.json
+token.json
+*.local
+
+# build output
+work/
+out/
+*.mp4
+*.mp3
+*.wav
+*.ass
+*.srt
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# whisper model cache (only relevant locally)
+models/
+
+# node
+node_modules/
+
+# os
+.DS_Store
+Thumbs.db
