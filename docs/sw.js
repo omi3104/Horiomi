@@ -1,5 +1,5 @@
 /* Minimal service worker: cache the app shell, never cache API calls. */
-const CACHE = "ytagent-shell-v3";
+const CACHE = "ytagent-shell-v4";
 const SHELL = [
   "./",
   "./index.html",

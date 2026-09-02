@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>YT Agent Remote</title>
+<title>Horiomi Remote</title>
 <link rel="manifest" href="./manifest.webmanifest" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <meta name="theme-color" content="#0E1116" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="YT Agent" />
+<meta name="apple-mobile-web-app-title" content="Horiomi" />
 <style>
   :root{
     --bg:#0E1116; --surface:#161B22; --surface2:#1C232D; --line:#2A3441;
@@ -78,7 +78,7 @@
 </head>
 <body>
 <header>
-  <h1>YT<span>·</span>Agent Remote</h1>
+  <h1>Hori<span>·</span>omi</h1>
   <button class="btn small ghost" id="gear">&#9881;</button>
 </header>
 
@@ -157,7 +157,7 @@ function guessRepo(){
     const seg = location.pathname.split("/").filter(Boolean)[0];
     if (m && seg) return `${m[1]}/${seg}`;
   } catch {}
-  return "omi3104/YT-Agent";
+  return "omi3104/Horiomi";
 }
 
 const LS = {

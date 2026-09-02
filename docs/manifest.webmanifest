@@ -1,7 +1,7 @@
 {
-  "name": "YT Agent Remote",
-  "short_name": "YT Agent",
-  "description": "Remote control for the automated YouTube Shorts pipeline",
+  "name": "Horiomi Remote",
+  "short_name": "Horiomi",
+  "description": "Remote control for the automated history Shorts pipeline",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
