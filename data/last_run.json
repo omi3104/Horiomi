@@ -1,0 +1,18 @@
+{
+  "date": null,
+  "generated_at": null,
+  "topic": null,
+  "title": null,
+  "description": null,
+  "tags": [],
+  "hashtags": [],
+  "beats": [],
+  "word_count": null,
+  "duration_seconds": null,
+  "target_window": [50, 80],
+  "privacy": "private",
+  "dry_run": null,
+  "video_id": null,
+  "youtube_url": null,
+  "studio_url": null
+}

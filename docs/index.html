@@ -7,6 +7,7 @@
 <link rel="manifest" href="./manifest.webmanifest" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <meta name="theme-color" content="#0E1116" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="YT Agent" />
@@ -30,6 +31,7 @@
   .btn{
     appearance:none;border:1px solid var(--line);background:var(--surface2);color:var(--text);
     padding:9px 14px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;
+    text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;
   }
   .btn:active{transform:translateY(1px)}
   .btn.small{padding:6px 10px;font-size:13px}
@@ -48,6 +50,13 @@
   .runline{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
   .runline:first-of-type{border-top:0}
   a{color:var(--accent)}
+  .thumb{width:100%;border-radius:10px;border:1px solid var(--line);display:block;margin-bottom:10px;background:var(--bg)}
+  .pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+  .pill.ok{color:var(--ok);border-color:#1f5130}
+  .pill.bad{color:var(--bad);border-color:#5a2523}
+  .kv{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--dim)}
+  .desc{white-space:pre-wrap;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:10px;max-height:220px;overflow:auto}
   input{
     width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);
     padding:10px;border-radius:10px;font-size:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace
@@ -61,33 +70,34 @@
     font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%
   }
   #toast.show{opacity:1}
-  details summary{cursor:pointer;color:var(--dim);font-size:13px}
+  details summary{cursor:pointer;color:var(--dim);font-size:13px;margin-top:8px}
   .hint{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
   code{background:var(--bg);padding:1px 5px;border-radius:5px;font-size:12px}
+  ol{margin:6px 0 0;padding-left:18px}
 </style>
 </head>
 <body>
 <header>
   <h1>YT<span>·</span>Agent Remote</h1>
-  <button class="btn small ghost" id="gear">⚙︎</button>
+  <button class="btn small ghost" id="gear">&#9881;</button>
 </header>
 
 <div id="app" hidden>
   <div class="card" id="latestCard">
-    <h2>Latest run</h2>
+    <h2>Latest workflow run</h2>
     <div class="row">
       <span class="dot" id="lDot"></span>
       <div class="grow">
-        <div id="lTitle" class="ellip">—</div>
-        <div class="muted" id="lMeta">loading…</div>
+        <div id="lTitle" class="ellip">&mdash;</div>
+        <div class="muted" id="lMeta">loading&hellip;</div>
       </div>
-      <a class="btn small" id="lOpen" target="_blank" rel="noopener">Open</a>
+      <a class="btn small" id="lOpen" target="_blank" rel="noopener">Log</a>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Today's video</h2>
-    <div id="vidBox" class="muted">loading…</div>
+  <div class="card" id="reviewCard">
+    <h2>Today&rsquo;s short &mdash; review</h2>
+    <div id="reviewBox" class="muted">loading&hellip;</div>
   </div>
 
   <div class="card">
@@ -95,21 +105,23 @@
     <div class="actions">
       <button class="btn" id="runDry">Build only<br><span class="muted">dry run</span></button>
       <button class="btn primary" id="runUp">Build + upload<br><span style="color:#5c4a12">Private</span></button>
-      <button class="btn ghost small full" id="refresh">↻ Refresh</button>
+      <button class="btn ghost small full" id="refresh">&#8635; Refresh</button>
     </div>
   </div>
 
   <div class="card">
     <h2>Recent runs</h2>
-    <div id="runs" class="muted">loading…</div>
+    <div id="runs" class="muted">loading&hellip;</div>
   </div>
 
   <details>
-    <summary>Links</summary>
+    <summary>Links &amp; install</summary>
     <div class="hint">
-      <a id="lnkActions" target="_blank" rel="noopener">GitHub Actions</a> ·
-      <a href="https://studio.youtube.com/channel/UC/videos/upload" target="_blank" rel="noopener">YouTube Studio</a> ·
+      <a id="lnkActions" target="_blank" rel="noopener">GitHub Actions</a> &middot;
+      <a id="lnkStudio" target="_blank" rel="noopener">YouTube Studio</a> &middot;
       <a id="lnkRepo" target="_blank" rel="noopener">Repo</a>
+      <p style="margin:.6em 0 0"><b>Install on iPhone:</b> open this page in Safari &rarr;
+      Share &rarr; <b>Add to Home Screen</b>. It then opens full-screen like an app.</p>
     </div>
   </details>
 </div>
@@ -119,12 +131,12 @@
   <label>Repository</label>
   <input id="fRepo" placeholder="owner/repo" autocapitalize="off" autocorrect="off" spellcheck="false" />
   <label>GitHub token (fine-grained)</label>
-  <input id="fTok" type="password" placeholder="github_pat_…" autocapitalize="off" autocorrect="off" spellcheck="false" />
+  <input id="fTok" type="password" placeholder="github_pat_&hellip;" autocapitalize="off" autocorrect="off" spellcheck="false" />
   <div class="hint">
-    Create at <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings → Developer settings → Fine-grained tokens</a>.<br>
-    • Repository access: <b>only</b> your repo<br>
-    • Permissions → <code>Actions</code>: Read and write · <code>Contents</code>: Read-only<br>
-    Token is stored only in this browser (localStorage), never sent anywhere except api.github.com.
+    Create at <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings &rarr; Developer settings &rarr; Fine-grained tokens</a>.<br>
+    &bull; Repository access: <b>only</b> your repo<br>
+    &bull; Permissions &rarr; <code>Actions</code>: Read and write &middot; <code>Contents</code>: Read-only<br>
+    Stored only in this browser (localStorage); sent only to api.github.com.
   </div>
   <div class="actions" style="margin-top:12px">
     <button class="btn ghost" id="cancelSetup">Cancel</button>
@@ -144,11 +156,17 @@ const LS = {
   get wf(){ return localStorage.getItem("ytagent.wf") || "daily.yml"; },
 };
 
+function esc(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
 function toast(msg){
   const t = $("#toast"); t.textContent = msg; t.classList.add("show");
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2600);
 }
 function rel(iso){
+  if (!iso) return "";
   const s = (Date.now() - new Date(iso)) / 1000;
   if (s < 60) return "just now";
   if (s < 3600) return Math.floor(s/60) + "m ago";
@@ -170,15 +188,20 @@ async function gh(path, opts){
       ...(opts && opts.headers || {}),
     },
   });
-  if (res.status === 401){ throw new Error("Token rejected (401). Re-check it in ⚙︎."); }
-  if (res.status === 403){ throw new Error("Forbidden / rate-limited (403)."); }
-  if (!res.ok && res.status !== 204){ throw new Error(res.status + " " + (await res.text()).slice(0,140)); }
+  if (res.status === 401) throw new Error("Token rejected (401). Re-check it in ⚙︎.");
+  if (res.status === 403) throw new Error("Forbidden / rate-limited (403).");
+  if (res.status === 404) { const e = new Error("404"); e.code = 404; throw e; }
+  if (!res.ok && res.status !== 204) throw new Error(res.status + " " + (await res.text()).slice(0,140));
   return res.status === 204 ? null : res.json();
 }
 
 function b64utf8(b64){
-  const bin = atob(b64.replace(/\n/g, ""));
+  const bin = atob(String(b64).replace(/\n/g, ""));
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+}
+async function ghJsonFile(pathInRepo){
+  const f = await gh(`/repos/${LS.repo}/contents/${pathInRepo}?ref=main`);
+  return JSON.parse(b64utf8(f.content));
 }
 
 async function loadRuns(){
@@ -197,27 +220,61 @@ async function loadRuns(){
   $("#runs").innerHTML = runs.map((r) => `
     <div class="runline">
       <span class="dot ${dotClass(r)}"></span>
-      <div class="grow"><div class="ellip">${(r.display_title||r.name).replace(/</g,"&lt;")}</div>
-      <div class="muted">${r.status==="completed"?(r.conclusion||"done"):r.status} · ${rel(r.run_started_at||r.created_at)}</div></div>
-      <a class="btn small" href="${r.html_url}" target="_blank" rel="noopener">→</a>
+      <div class="grow"><div class="ellip">${esc(r.display_title || r.name)}</div>
+      <div class="muted">${esc(r.status==="completed"?(r.conclusion||"done"):r.status)} · ${rel(r.run_started_at||r.created_at)}</div></div>
+      <a class="btn small" href="${esc(r.html_url)}" target="_blank" rel="noopener">&rarr;</a>
     </div>`).join("") || `<div class="muted">No runs yet.</div>`;
 }
 
-async function loadVideo(){
-  try{
-    const f = await gh(`/repos/${LS.repo}/contents/data/used_topics.json`);
-    const list = JSON.parse(b64utf8(f.content));
-    const withId = [...list].reverse().find((x) => x.video_id);
-    const last = list[list.length - 1];
-    if (!last){ $("#vidBox").textContent = "Nothing generated yet."; return; }
-    const vid = withId && withId.video_id;
-    $("#vidBox").innerHTML = `
-      <div class="ellip" style="color:var(--text)">${(last.title||last.topic||"—").replace(/</g,"&lt;")}</div>
-      <div class="muted">${last.date || ""}${vid ? "" : " · not uploaded yet"}</div>
-      ${vid ? `<div style="margin-top:8px" class="row">
-        <a class="btn small primary" href="https://studio.youtube.com/video/${vid}/edit" target="_blank" rel="noopener">Publish in Studio</a>
-        <a class="btn small" href="https://youtu.be/${vid}" target="_blank" rel="noopener">Preview</a></div>` : ""}`;
-  }catch(e){ $("#vidBox").textContent = "—"; }
+function lenPill(d, win){
+  if (d == null) return "";
+  const [lo, hi] = win || [50, 80];
+  const ok = d >= lo - 1 && d <= hi + 1;
+  return `<span class="pill ${ok ? "ok" : "bad"}">${d}s / ${lo}–${hi}s</span>`;
+}
+
+async function loadReview(){
+  let r;
+  try {
+    r = await ghJsonFile("data/last_run.json");
+  } catch (e) {
+    if (e.code === 404) { $("#reviewBox").textContent = "No build recorded yet."; return; }
+    throw e;
+  }
+  if (!r || !r.title){ $("#reviewBox").textContent = "No build recorded yet."; return; }
+
+  const vid = r.video_id;
+  const thumb = vid
+    ? `<img class="thumb" src="https://i.ytimg.com/vi/${esc(vid)}/hqdefault.jpg" alt="" onerror="this.remove()">`
+    : "";
+  const src = r.topic_url
+    ? `<a href="${esc(r.topic_url)}" target="_blank" rel="noopener">${esc(r.topic_source || "source")}</a>`
+    : esc(r.topic_source || "");
+  const tags = (r.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
+  const beats = (r.beats || []).map((b, i) =>
+    `<div class="muted" style="margin:4px 0"><b style="color:var(--text)">${i+1}.</b> ${esc(b.say)}
+      <span style="opacity:.7">&mdash; ${esc(b.visual)}</span></div>`).join("");
+
+  const buttons = vid ? `
+    <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">
+      <a class="btn small primary" href="https://youtu.be/${esc(vid)}" target="_blank" rel="noopener">&#9654; Watch in YouTube app</a>
+      <a class="btn small" href="https://studio.youtube.com/video/${esc(vid)}/edit" target="_blank" rel="noopener">Publish in Studio</a>
+    </div>
+    <div class="hint">The upload is <b>${esc(r.privacy || "private")}</b>, so it only plays for you while signed in
+    to this Google account in the YouTube app.</div>`
+    : `<div class="hint">${r.dry_run ? "Dry run — built but not uploaded." : "Not uploaded yet."}</div>`;
+
+  $("#reviewBox").innerHTML = `
+    ${thumb}
+    <div style="color:var(--text);font-weight:600">${esc(r.title)}</div>
+    <div class="muted" style="margin-top:2px">
+      ${esc(r.date || "")} ${src ? "· " + src : ""} ${lenPill(r.duration_seconds, r.target_window)}
+      ${r.word_count ? `<span class="muted">· ${r.word_count} words</span>` : ""}
+    </div>
+    ${tags ? `<div class="kv">${tags}</div>` : ""}
+    ${r.description ? `<div class="desc">${esc(r.description)}</div>` : ""}
+    ${beats ? `<details><summary>Script (${(r.beats||[]).length} beats)</summary><div style="margin-top:6px">${beats}</div></details>` : ""}
+    ${buttons}`;
 }
 
 async function dispatch(dryRun){
@@ -233,9 +290,11 @@ let busy = false;
 async function refresh(){
   if (busy || !LS.tok) return;
   busy = true;
-  try{ await Promise.all([loadRuns(), loadVideo()]); }
-  catch(e){ toast(e.message); }
-  finally{ busy = false; }
+  try {
+    const [a, b] = await Promise.allSettled([loadRuns(), loadReview()]);
+    if (a.status === "rejected") toast(a.reason.message);
+    else if (b.status === "rejected") toast(b.reason.message);
+  } finally { busy = false; }
 }
 
 function showApp(){
@@ -243,6 +302,7 @@ function showApp(){
   $("#app").hidden = !LS.tok;
   if (!LS.tok){ openSetup(); return; }
   $("#lnkActions").href = `https://github.com/${LS.repo}/actions`;
+  $("#lnkStudio").href = "https://studio.youtube.com/";
   $("#lnkRepo").href = `https://github.com/${LS.repo}`;
   refresh();
 }
