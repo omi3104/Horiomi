@@ -65,6 +65,7 @@ def write_last_run(picked: dict, script: dict, result: dict) -> None:
         "topic": script.get("topic") or picked.get("topic"),
         "topic_source": picked.get("source"),
         "topic_url": picked.get("url"),
+        "seo_terms": picked.get("seo", []),
         "title": script.get("title"),
         "hook": script.get("hook"),
         "description": script.get("description"),

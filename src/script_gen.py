@@ -36,31 +36,43 @@ _MIN_BEATS = 6
 _MAX_BEATS = 10
 
 _SCHEMA_HINT = (
-    '{"title": str<=90, "hook": str, '
+    '{"title": str<=70, "hook": str, '
     f'"beats": [{{"say": str, "visual": str}}] ({_MIN_BEATS}-{_MAX_BEATS} items), '
     '"cta": str, "description": str, "tags": [str], "hashtags": [str]}'
 )
 
 _PROMPT = textwrap.dedent(
     """\
-    You write scripts for a faceless YouTube Shorts channel about surprising
-    but TRUE facts (science, history, nature, space, psychology).
+    You write scripts for a faceless YouTube Shorts channel about HISTORY and
+    historical geopolitics: ancient and medieval Greece, Rome, Persia, Egypt,
+    Byzantium, the Islamic world, the Normans, the Mongols, the Ottomans, the
+    British Empire, the World Wars and the Cold War treated as history. NOT
+    current partisan politics.
 
     Topic: "{topic}"
 
     Rules:
-    - Factually accurate. If the topic is a common myth, correct it and make
-      the correction the payoff. Never invent statistics.
-    - Spoken style: short punchy 2nd-person sentences. No markdown, no emojis,
-      no "in this video", no stage directions.
+    - Pick ONE surprising, lesser-known angle on the topic - not a textbook
+      overview. Lead with the twist.
+    - Historically accurate. Use real dates, names and places. If the popular
+      version is a myth, correct it and make the correction the payoff. Never
+      invent numbers.
+    - Tone: dramatic and vivid, like a storyteller who was there. Short punchy
+      sentences, mostly 2nd/3rd person. No markdown, no emojis, no "in this
+      video", no stage directions, no "let that sink in".
     - Narration = hook + every beat + cta, {words_lo} to {words_hi} words TOTAL
-      (aim for {words_target}). This must fill about {seconds} seconds of speech,
-      so do NOT stop early - keep adding real detail, context and examples.
+      (aim for {words_target}) - about {seconds} seconds of speech. Do NOT stop
+      early; keep adding concrete detail, stakes and consequence.
     - {beats_lo} to {beats_hi} beats. Each beat = one or two sentences plus a
-      concrete visual search phrase using real nouns a stock library would have
-      ("humpback whale underwater", "aurora over snow", not "wonder" or
-      "mystery").
-    - Title <= 90 chars, curiosity-driven, no ALL CAPS, no false promise.
+      concrete visual search phrase of real historical nouns a stock library
+      would have ("Roman legionaries shield wall", "Hagia Sophia interior dome",
+      "medieval siege tower assault", "Persian relief carving Persepolis") -
+      never abstractions like "power" or "glory".
+    - Title <= 70 chars, a curiosity gap, front-load the strongest keyword, no
+      ALL CAPS, no clickbait lie. Plain hyphens only, no fancy dashes.
+    - SEO: work ONE of these real YouTube search phrases naturally into the
+      title or the first line of the description if any fit: {seo}
+    - description: first line is a keyword-rich one-sentence hook.
 
     Output ONLY minified JSON, no code fences, matching:
     {schema}
@@ -68,10 +80,12 @@ _PROMPT = textwrap.dedent(
 )
 
 
-def _prompt_for(topic: str) -> str:
+def _prompt_for(topic: str, seo_terms: list[str] | None = None) -> str:
+    seo = "; ".join(seo_terms or []) or "(none - skip this rule)"
     return _PROMPT.format(
         topic=topic,
         schema=_SCHEMA_HINT,
+        seo=seo,
         words_lo=_WORDS_LO,
         words_hi=_WORDS_HI,
         words_target=_TARGET_WORDS,
@@ -158,10 +172,10 @@ def _groq_body(model: str, prompt: str, effort: str | None) -> dict:
     return body
 
 
-def _via_groq(topic: str) -> dict | None:
+def _via_groq(topic: str, seo_terms=None) -> dict | None:
     if not config.GROQ_API_KEY:
         return None
-    prompt = _prompt_for(topic)
+    prompt = _prompt_for(topic, seo_terms)
     headers = {"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA}
     for model in _groq_models()[:5]:
         # reasoning models: some want "low", some only accept "none"/"default";
@@ -197,14 +211,14 @@ def _via_groq(topic: str) -> dict | None:
     return None
 
 
-def _via_pollinations(topic: str) -> dict | None:
+def _via_pollinations(topic: str, seo_terms=None) -> dict | None:
     # The legacy text API is now paywalled (402) for everyone; kept as one
     # quick attempt in case that changes, but no longer worth a retry loop.
     try:
         r = requests.post(
             "https://text.pollinations.ai/", headers=UA, timeout=45,
             json={
-                "messages": [{"role": "user", "content": _prompt_for(topic)}],
+                "messages": [{"role": "user", "content": _prompt_for(topic, seo_terms)}],
                 "jsonMode": True, "private": True, "referrer": "yt-shorts-agent",
             },
         )
@@ -271,10 +285,10 @@ def _gemini_call(api_version: str, model: str, prompt: str) -> dict | None:
     return _extract_json("".join(p.get("text", "") for p in parts))
 
 
-def _via_gemini(topic: str) -> dict | None:
+def _via_gemini(topic: str, seo_terms=None) -> dict | None:
     if not config.GEMINI_API_KEY:
         return None
-    prompt = _prompt_for(topic)
+    prompt = _prompt_for(topic, seo_terms)
     for api_version in ("v1beta", "v1"):
         # hardcoded current ids first; discovery only appended (it returns
         # retired ids that 404 for new keys).
@@ -312,20 +326,33 @@ def _wikipedia_summary(topic: str) -> str:
         return ""
 
 
-# Filler used only by the last-resort template, kept plain and non-spammy. It
-# only runs when both model APIs are down, and exists so the day still ships.
+# Filler for the last-resort template (only runs when every model API is down).
 _TEMPLATE_FILLER = [
-    "The story behind {topic} is stranger than the version most people repeat.",
-    "The common explanation sounds right, but the measurements tell a different tale.",
-    "Researchers pinned it down by testing the obvious answer and watching it fail.",
-    "It comes down to simple physics, chemistry and a lot of time.",
-    "The effect is small on any single day, yet it adds up in a way you can measure.",
-    "Once someone points it out, you start noticing it almost everywhere.",
-    "This one fact quietly connects to a much bigger picture in science and history.",
-    "It is the kind of detail that changes how you look at something ordinary.",
-    "The records are consistent, checked and re-checked over many years.",
-    "Understanding why it happens is more satisfying than the myth ever was.",
+    "The version in the textbooks skips the part that actually mattered.",
+    "The people who were there recorded something the legend leaves out.",
+    "What looked like a single decisive moment was really years in the making.",
+    "The real cause was duller and stranger than the story we were told.",
+    "It reshaped borders that still sit roughly where it left them.",
+    "Chroniclers on both sides agreed on the outcome and almost nothing else.",
+    "One overlooked detail changed the balance of power for generations.",
+    "The winners wrote the account, and it shows.",
+    "Archaeology keeps confirming the boring explanation over the dramatic one.",
+    "Knowing why it happened is more unsettling than the myth ever was.",
 ]
+_HISTORY_TAGS = ["history", "history facts", "historical facts", "ancient history",
+                 "world history", "history shorts"]
+_HISTORY_HASHTAGS = ["#history", "#historyfacts", "#shorts"]
+
+
+def _fix_unicode(text: str) -> str:
+    """Straighten fancy dashes / quotes the models sometimes emit."""
+    for bad, good in (
+        ("‑", "-"), ("–", "-"), ("—", "-"), ("−", "-"),
+        ("‘", "'"), ("’", "'"), ("“", '"'), ("”", '"'),
+        ("…", "..."), (" ", " "),
+    ):
+        text = text.replace(bad, good)
+    return text
 
 
 def _template(topic: str) -> dict:
@@ -334,60 +361,65 @@ def _template(topic: str) -> dict:
     sentences = sentences[:_MAX_BEATS]
 
     seed = [
-        f"Here is something surprising about {topic}.",
-        f"Here is what actually makes {topic} worth knowing.",
+        f"There is a lesser-known story behind {topic}.",
+        f"Here is what actually happened with {topic}.",
     ]
     body = sentences or seed
     i = 0
-    # Fill towards the top of the beat range so the narration is long enough
-    # for the 50-80s window even with no model help.
     while len(body) < _MAX_BEATS - 1:
-        body.append(_TEMPLATE_FILLER[i % len(_TEMPLATE_FILLER)].format(topic=topic))
+        body.append(_TEMPLATE_FILLER[i % len(_TEMPLATE_FILLER)])
         i += 1
     body = body[:_MAX_BEATS]
 
     beats = [{"say": s, "visual": topic} for s in body]
-    hook = f"Did you know this about {topic}?"
     return {
-        "title": f"The truth about {topic}"[:90],
-        "hook": hook,
+        "title": f"The untold story of {topic}"[:70],
+        "hook": f"Most people get {topic} completely wrong.",
         "beats": beats,
-        "cta": "Follow for a new fact every day.",
-        "description": f"A quick fact about {topic}.",
-        "tags": ["facts", "did you know", "shorts", "educational", "science"],
-        "hashtags": ["#shorts", "#facts", "#didyouknow"],
+        "cta": "Follow for a piece of history every day.",
+        "description": f"A surprising look at {topic}.",
+        "tags": list(_HISTORY_TAGS),
+        "hashtags": list(_HISTORY_HASHTAGS),
     }
 
 
-def _normalise(topic: str, data: dict) -> dict:
+def _normalise(topic: str, data: dict, seo_terms: list[str] | None = None) -> dict:
     beats: list[dict] = []
     for b in data.get("beats", []):
-        say = str(b.get("say", "")).strip()
-        visual = str(b.get("visual", "")).strip() or topic
+        say = _fix_unicode(str(b.get("say", "")).strip())
+        visual = _fix_unicode(str(b.get("visual", "")).strip()) or topic
         if say:
             beats.append({"say": say, "visual": visual})
     if len(beats) < 3:
         raise ValueError("script has too few usable beats")
 
-    hook = str(data.get("hook", "")).strip() or beats[0]["say"]
-    cta = str(data.get("cta", "")).strip() or "Follow for a new fact every day."
+    hook = _fix_unicode(str(data.get("hook", "")).strip()) or beats[0]["say"]
+    cta = _fix_unicode(str(data.get("cta", "")).strip()) or "Follow for a piece of history every day."
     narration = re.sub(r"\s+", " ", " ".join([hook] + [b["say"] for b in beats] + [cta])).strip()
 
-    tags = [str(t).strip() for t in data.get("tags", []) if str(t).strip()][:15] or [
-        "facts", "did you know", "shorts", "educational",
-    ]
+    # tags = model tags + real YouTube search phrases + a history base set
+    seen: set[str] = set()
+    tags: list[str] = []
+    for t in (list(data.get("tags", [])) + list(seo_terms or []) + _HISTORY_TAGS):
+        t = _fix_unicode(str(t).strip().lstrip("#"))
+        if t and t.lower() not in seen and len(t) <= 60:
+            seen.add(t.lower())
+            tags.append(t)
+    tags = tags[:15]
+
     hashtags = [h if str(h).startswith("#") else f"#{h}" for h in data.get("hashtags", [])]
-    for default in ("#shorts", "#facts", "#didyouknow"):
+    for default in _HISTORY_HASHTAGS:
         if default not in [h.lower() for h in hashtags]:
             hashtags.append(default)
-    hashtags = hashtags[:8]
+    hashtags = [_fix_unicode(h) for h in hashtags][:8]
 
-    description = str(data.get("description", "")).strip()
+    description = _fix_unicode(str(data.get("description", "")).strip())
     description = f"{description}\n\n{cta}\n{' '.join(hashtags)}".strip()
 
+    title = _fix_unicode(str(data.get("title", "")).strip()) or topic
     return {
         "topic": topic,
-        "title": (str(data.get("title", "")).strip() or topic)[:100],
+        "title": title[:100],
         "hook": hook,
         "beats": beats,
         "cta": cta,
@@ -400,13 +432,13 @@ def _normalise(topic: str, data: dict) -> dict:
     }
 
 
-def build(topic: str) -> dict:
+def build(topic: str, seo_terms: list[str] | None = None) -> dict:
     # Each provider self-skips if its key is unset, so this is just priority
     # order: Groq -> Gemini -> Pollinations -> Wikipedia template.
     raw: dict | None = None
     source = "template"
     for name, fn in (("groq", _via_groq), ("gemini", _via_gemini), ("pollinations", _via_pollinations)):
-        raw = fn(topic)
+        raw = fn(topic, seo_terms)
         if raw:
             source = name
             break
@@ -414,12 +446,12 @@ def build(topic: str) -> dict:
     script: dict | None = None
     if raw:
         try:
-            script = _normalise(topic, raw)
+            script = _normalise(topic, raw, seo_terms)
         except Exception as exc:  # noqa: BLE001
             print(f"[script] {source} output rejected ({exc}); using template")
             raw = None
     if not raw:
-        script = _normalise(topic, _template(topic))
+        script = _normalise(topic, _template(topic), seo_terms)
         source = "template"
 
     assert script is not None

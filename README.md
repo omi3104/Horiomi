@@ -1,14 +1,24 @@
-# YT Shorts Agent — automated daily "evergreen facts" Shorts
+# YT Shorts Agent — automated daily HISTORY Shorts
+
+Niche: **ancient & medieval history and historical geopolitics** — Greeks,
+Romans, Persians, Byzantines, the Islamic world, Normans, Mongols, Ottomans,
+the British Empire, the World Wars and Cold War *as history*. Surprising,
+lesser-known angles on famous subjects. **Not** current partisan politics.
 
 A hands-off pipeline that every day:
 
-1. **Finds a fresh topic** — top posts from r/todayilearned / r/science /
-   r/Damnthatsinteresting, lightly boosted by Google Trends, de-duplicated
-   against everything it has already used.
+1. **Finds a high-demand topic** — Wikipedia's most-viewed articles (yesterday),
+   filtered to history via their categories; Wikipedia "On this day"; real
+   YouTube search-suggest phrases for era seed terms; and a curated bank of
+   dramatic hooks. Ranked by actual audience demand, de-duplicated against
+   everything already used. The era mix is whatever people are searching that
+   week.
 2. **Writes a script** — Groq if you add a key (fast, reliable free tier), then
    Gemini, then the keyless Pollinations text API, then a Wikipedia-seeded
-   template so it never stalls. The narration is sized to land the finished
-   short at **50–80 seconds**.
+   template so it never stalls. Dramatic "storyteller" tone, real dates and
+   names, corrects the popular myth as the payoff. Narration sized to land the
+   finished short at **50–80 seconds**. Title + description + tags are seeded
+   with the YouTube-suggest phrases for SEO.
 3. **Sources visuals** — one clip/image per beat. Real **stock video** first
    (Pexels / Pixabay / Coverr with a free key, plus keyless Wikimedia Commons
    video), then real photos (Openverse, Wikimedia), then AI images
@@ -32,7 +42,7 @@ You review each day's Private upload and hit Publish when you're happy.
 
 | Step | Service | Key needed? |
 |---|---|---|
-| Topics | Reddit JSON, Google Trends RSS | no |
+| Topics | Wikipedia pageviews + "On this day" + YouTube search-suggest | no |
 | Script | Groq / Gemini if keyed, else Pollinations text, else template | free key = much better |
 | Stock video | Wikimedia Commons (keyless); Pexels / Pixabay / Coverr | free key = much better |
 | Real photos | Openverse API, Wikimedia Commons API | no |
@@ -64,7 +74,7 @@ video/day sits well inside it.
 ```
 src/
   config.py        knobs + credential loading (nothing topic-specific)
-  trends.py        pick one fresh evergreen topic
+  trends.py        pick one high-demand history topic (Wikipedia views, YouTube suggest)
   script_gen.py    topic -> {title, hook, beats[], narration, description, tags}
   media.py         one clip/image per beat, layered free sources
   tts.py           narration -> voice.mp3   (edge-tts)
@@ -242,7 +252,8 @@ fallback above Pollinations.
 ## Adding a new topic source or media provider
 
 - **Topic source:** add a function in `src/trends.py` that returns
-  `[{topic, score, source, url}]` and include it in `pick_topic()`.
+  `[{topic, score, source, url}]` and add it to the `pool` in `pick_topic()`.
+  Higher `score` = more audience demand; it is what the ranker weights.
 - **Media provider:** add a `_provider(query, stem) -> path | None` in
   `src/media.py` and slot it into `_VIDEO_PROVIDERS` or `_IMAGE_PROVIDERS`.
 
@@ -299,8 +310,10 @@ after every build (including dry runs).
 
 - **Monetisation:** fully auto-generated faceless Shorts can hit YouTube's
   "reused / inauthentic content" rules for the Partner Program. Posting is
-  unaffected; long-term revenue may be. The evergreen-facts angle + real
-  photos + original scripts is the lower-risk approach, not a guarantee.
+  unaffected; long-term revenue may be. Original history scripts + real stock
+  footage + narration is the lower-risk approach, not a guarantee. The niche
+  filter deliberately blocks current partisan politics, which YouTube limits
+  hardest.
 - **Accuracy:** the script writer is instructed to correct myths and never
   invent numbers, but spot-check before publishing — that is what Private mode
   is for.

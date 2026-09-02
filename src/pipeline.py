@@ -34,7 +34,7 @@ def run() -> int:
     topic = picked["topic"]
     print(f"\n=== TOPIC: {topic}  (source: {picked['source']}) ===\n")
 
-    script = script_gen.build(topic)
+    script = script_gen.build(topic, picked.get("seo"))
 
     media_items = media.fetch_for_beats(script["beats"])
     audio, _speech_secs, spoken = tts.synthesize(script["narration"])
