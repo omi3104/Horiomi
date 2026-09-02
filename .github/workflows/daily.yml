@@ -95,5 +95,5 @@ jobs:
           name: short-${{ github.run_id }}
           path: |
             out/
-          retention-days: 14
+          retention-days: 4        # keep well under the 500 MB free artifact cap
           if-no-files-found: ignore
