@@ -7,13 +7,18 @@ A hands-off pipeline that every day:
    against everything it has already used.
 2. **Writes a script** — Pollinations text API (keyless). Falls back to Gemini
    if you add a key, then to a Wikipedia-seeded template so it never stalls.
-3. **Sources visuals** — one clip/image per beat: Openverse + Wikimedia Commons
-   (keyless real photos), Pollinations (keyless AI images), plus Pexels/Pixabay
-   and Gemini images *if* you add those keys.
-4. **Records a voiceover** — `edge-tts` Microsoft neural voice (keyless).
+   The narration is sized to land the finished short at **50–80 seconds**.
+3. **Sources visuals** — one clip/image per beat. Real **stock video** first
+   (Pexels / Pixabay / Coverr with a free key, plus keyless Wikimedia Commons
+   video), then real photos (Openverse, Wikimedia), then AI images
+   (Gemini if keyed, else keyless Pollinations). Add one stock-video key and
+   most beats become motion footage instead of stills.
+4. **Records a voiceover** — `edge-tts` Microsoft neural voice (keyless). The
+   speaking rate is auto-tuned so the runtime stays inside the 50–80s window.
 5. **Builds captions** — `faster-whisper` word-level timing → animated subtitles.
 6. **Edits the video** — `ffmpeg`: 1080×1920, Ken-Burns motion, burned captions,
-   voice (+ optional music bed), light cinematic grade.
+   voice (+ optional music bed), light cinematic grade. The final file is
+   clamped to the 50–80s window (tail held / trimmed as needed).
 7. **Uploads to *your* YouTube channel as Private** — via YouTube Data API.
 8. **(optional) Copies the file to a Google Drive folder** for phone review.
 9. **Repeats daily** on GitHub Actions cron. Your PC can be off.
@@ -28,6 +33,7 @@ You review each day's Private upload and hit Publish when you're happy.
 |---|---|---|
 | Topics | Reddit JSON, Google Trends RSS | no |
 | Script | Pollinations text (`text.pollinations.ai`) | no |
+| Stock video | Wikimedia Commons (keyless); Pexels / Pixabay / Coverr | free key = much better |
 | Real photos | Openverse API, Wikimedia Commons API | no |
 | AI images | Pollinations image (`image.pollinations.ai`) | no |
 | Voiceover | `edge-tts` | no |
@@ -40,8 +46,11 @@ The **only** credential the pipeline needs is OAuth for *your own* YouTube
 channel. Google requires the channel owner to authorise the app once — nobody
 can bypass that. After the one-time step below it runs untouched.
 
-Optional keys (`GEMINI_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY`) only raise
-quality; the pipeline is fully functional without them.
+Optional keys (`PEXELS_API_KEY`, `PIXABAY_API_KEY`, `COVERR_API_KEY`,
+`GEMINI_API_KEY`) only raise quality; the pipeline is fully functional without
+them. In practice you want **at least one stock-video key** — see
+[Stock media API keys](#stock-media-api-keys-recommended) — or every beat is a
+still image.
 
 YouTube's free quota is 10,000 units/day; one upload costs ~1,600, so one
 video/day sits well inside it.
@@ -123,9 +132,11 @@ secret**. Add:
 | `GOOGLE_CLIENT_SECRET` | from step 2 |
 | `GOOGLE_REFRESH_TOKEN` | from step 3 |
 
-Optional secrets: `GEMINI_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY`,
-`DRIVE_FOLDER_ID` (the id in a Drive folder URL — the pipeline drops the day's
-`.mp4` + `.json` there for review).
+Optional secrets: `PEXELS_API_KEY`, `PIXABAY_API_KEY`, `COVERR_API_KEY`,
+`GEMINI_API_KEY`, `DRIVE_FOLDER_ID` (the id in a Drive folder URL — the pipeline
+drops the day's `.mp4` + `.json` there for review). See
+[Stock media API keys](#stock-media-api-keys-recommended) for how to get the
+three stock keys.
 
 > **Drive uploads are off by default.** Google refuses to grant
 > `youtube.upload` and `drive.file` in the same unverified-app consent
@@ -137,7 +148,9 @@ Optional secrets: `GEMINI_API_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY`,
 > workflow's build artifact, so this is a nice-to-have, not required.
 
 Optional **Variables** (same screen, "Variables" tab) to tune without code:
-`VOICE`, `GEO`, `YT_CATEGORY_ID`, `PRIVACY`, `WHISPER_MODEL`.
+`VOICE`, `GEO`, `YT_CATEGORY_ID`, `PRIVACY`, `WHISPER_MODEL`, `PREFER_VIDEO`
+(`true`/`false`), `TARGET_SECONDS_MIN` / `TARGET_SECONDS_MAX` (default 50 / 80),
+`TARGET_SECONDS`, `TTS_RATE`.
 
 ### 5. Test it, then leave it alone
 
@@ -171,31 +184,97 @@ Output lands in `out/`.
 
 ---
 
+## Stock media API keys (recommended)
+
+Without a stock key every beat is a still image (keyless Wikimedia Commons
+video is the only motion source and it rarely matches). Add **one or more** of
+these — all free, ~2 minutes each — as repo **secrets** (or `.env` lines
+locally). The pipeline tries them in the order below and uses the first clip it
+can download; stills are only used when no video source has a match.
+
+### Pexels — best single key
+
+1. Sign in at <https://www.pexels.com/> (free).
+2. Go to <https://www.pexels.com/api/> → **Get Started** / **Your API Key**.
+3. Fill the short form (name the project "YT Shorts Agent", pick "personal").
+4. Copy the key → repo secret **`PEXELS_API_KEY`**.
+   Free tier: 200 requests/hour, 20 000/month — far more than one video/day.
+
+### Pixabay — extra coverage
+
+1. Create a free account at <https://pixabay.com/>.
+2. Open <https://pixabay.com/api/docs/> while logged in — your key is shown
+   inline in the "Search Images" example (the `key=` value).
+3. Copy it → repo secret **`PIXABAY_API_KEY`**. Free tier: 100 req/min.
+
+### Coverr — cinematic B-roll
+
+1. Sign up at <https://coverr.co/> (free).
+2. Open the **Dashboard → Developers / API keys** (also reachable at
+   <https://api.coverr.co>) and create a key.
+3. Copy it → repo secret **`COVERR_API_KEY`**.
+
+### Gemini (optional) — sharper scripts + AI images
+
+<https://aistudio.google.com/apikey> → **Create API key** → repo secret
+**`GEMINI_API_KEY`**. Not a stock source, but improves the script and adds an
+AI-image fallback above Pollinations.
+
+> Turn motion footage off entirely with the `PREFER_VIDEO=false` variable —
+> then the pipeline only ever uses stills.
+
+---
+
 ## Adding a new topic source or media provider
 
 - **Topic source:** add a function in `src/trends.py` that returns
   `[{topic, score, source, url}]` and include it in `pick_topic()`.
 - **Media provider:** add a `_provider(query, stem) -> path | None` in
-  `src/media.py` and slot it into the chain in `fetch_for_beats()`.
+  `src/media.py` and slot it into `_VIDEO_PROVIDERS` or `_IMAGE_PROVIDERS`.
 
 No other file needs to change.
 
 ---
 
-## "Can this be an APK / an iPhone PWA?"
+## Reviewing from your iPhone (the PWA)
 
-The **worker cannot run on a phone** — it needs ffmpeg encoding, a ~500 MB
-Whisper model and sustained background execution. iOS suspends PWAs in the
-background and cannot run ffmpeg/Python at all; an Android APK can technically
-bundle ffmpeg but background daily automation is throttled and battery-heavy.
-Keeping the worker in the cloud (this repo) is also *why* it runs when your
-phone is off.
+`docs/` is a tiny installable web app — one HTML file, no build step — served
+free from **GitHub Pages**. It is a *control panel*, not the worker: the video
+is still built in the cloud so it runs with your phone off.
 
-What **can** be an app is a thin **control panel**: view today's Private video,
-see run status, tap "Run now", change the topic. That is a good fit for a
-**PWA** (one build, installs on iPhone *and* Android via "Add to Home Screen",
-no app store) hosted free on GitHub Pages, talking to the GitHub REST API with
-a fine-grained token. Not built yet — ask if you want it as phase 2.
+**Enable it once:** repo → **Settings → Pages** → Source = **Deploy from a
+branch**, Branch = **main**, Folder = **`/docs`** → Save. After a minute the
+URL is `https://<you>.github.io/<repo>/`.
+
+**Install on iPhone:** open that URL in **Safari** → Share → **Add to Home
+Screen**. It opens full-screen like a native app.
+
+**First-run setup (in the app):** tap ⚙︎ and enter:
+
+- **Repository** — `owner/repo`
+- **GitHub token** — a *fine-grained* PAT
+  (<https://github.com/settings/personal-access-tokens/new>) scoped to **only
+  this repo**, with **Actions: Read and write** and **Contents: Read-only**.
+  It is stored only in your browser's `localStorage` and is sent only to
+  `api.github.com`.
+
+**What you get:**
+
+- **Latest workflow run** status (green / red / running) with a link to the log.
+- **Today's short — review**: thumbnail, title, topic + source link, a
+  length pill (e.g. `63s / 50–80s`, red if out of range), the full generated
+  description, tag chips, and the beat-by-beat script. Buttons deep-link to
+  **Watch in the YouTube app** (the Private upload plays there while you're
+  signed in) and **Publish in Studio**.
+- **Run the pipeline**: *Build only* (dry run) or *Build + upload* (Private),
+  which dispatch the GitHub Action.
+- **Recent runs** list.
+
+The review panel reads `data/last_run.json`, which the daily workflow commits
+after every build (including dry runs).
+
+> The **worker itself cannot run on a phone** — it needs ffmpeg, a ~500 MB
+> Whisper model and sustained background execution that iOS does not allow.
 
 ---
 
@@ -208,11 +287,20 @@ a fine-grained token. Not built yet — ask if you want it as phase 2.
 - **Accuracy:** the script writer is instructed to correct myths and never
   invent numbers, but spot-check before publishing — that is what Private mode
   is for.
-- **Media licences:** Openverse/Wikimedia/Pexels/Pixabay/Pollinations are used
-  under their free/commercial terms. If you add a music file, use a cleared
-  track (see `assets/music/PUT_MUSIC_HERE.txt`).
+- **Media licences:** Openverse / Wikimedia / Pexels / Pixabay / Coverr /
+  Pollinations are used under their free/commercial terms (attribution not
+  required by any of them for this use, but check if you redistribute). If you
+  add a music file, use a cleared track (see `assets/music/PUT_MUSIC_HERE.txt`).
+- **Length:** every short is forced to 50–80s. YouTube raised the Shorts
+  maximum to 3 minutes in 2024, so these still count as Shorts. Tune with the
+  `TARGET_SECONDS_MIN` / `TARGET_SECONDS_MAX` variables.
 - **Token in "Testing" mode:** Google refresh tokens for apps left in Testing
   used to expire after 7 days. For a single Test user this no longer applies in
   practice, but if uploads ever start failing with `invalid_grant`, re-run
   `node scripts/get-token.mjs` and update the secret.
-```
+
+---
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).

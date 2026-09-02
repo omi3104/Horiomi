@@ -17,7 +17,7 @@
 
 import http from "node:http";
 import { exec } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { pushSecrets, ghTokenFromGitCredential } from "./push-secrets.mjs";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, env } from "node:process";
@@ -115,13 +115,25 @@ const server = http.createServer(async (req, res) => {
       GOOGLE_REFRESH_TOKEN: data.refresh_token,
     };
 
-    // 1) write a local .env (git-ignored) so `python -m src.pipeline` works locally
+    // 1) merge into the local .env (git-ignored) so `python -m src.pipeline`
+    //    works locally - existing keys like PEXELS_API_KEY are preserved.
     try {
+      const envUrl = new URL("../.env", import.meta.url);
+      const existing = {};
+      try {
+        for (const line of readFileSync(envUrl, "utf8").split(/\r?\n/)) {
+          const t = line.trim();
+          if (!t || t.startsWith("#") || !t.includes("=")) continue;
+          const i = t.indexOf("=");
+          existing[t.slice(0, i).trim()] = t.slice(i + 1);
+        }
+      } catch {}
+      const merged = { ...existing, ...secrets };
       writeFileSync(
-        new URL("../.env", import.meta.url),
-        Object.entries(secrets).map(([k, v]) => `${k}=${v}`).join("\n") + "\n"
+        envUrl,
+        Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n"
       );
-      console.log("\nWrote .env (local, git-ignored).");
+      console.log("\nUpdated .env (local, git-ignored) - other keys kept.");
     } catch (e) {
       console.log("\nCould not write .env:", e.message);
     }

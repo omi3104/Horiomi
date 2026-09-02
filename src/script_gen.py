@@ -5,9 +5,13 @@ Writer priority (first that works wins):
   2. Gemini API              - only if GEMINI_API_KEY is set (optional upgrade)
   3. Wikipedia-backed template - keyless last resort so the daily job never dies
 
+The narration is sized to roughly config.TARGET_SECONDS of speech so the
+finished short lands inside the 50-80s window (tts.py + video.py enforce the
+hard bounds).
+
 Returns:
-  { title, hook, cta, description, tags[], hashtags[],
-    beats: [ {say, visual}, ... ], narration, word_count }
+  { topic, title, hook, cta, description, tags[], hashtags[],
+    beats: [ {say, visual}, ... ], narration, word_count, target_seconds }
 """
 from __future__ import annotations
 
@@ -22,9 +26,16 @@ from . import config
 
 UA = {"User-Agent": "yt-shorts-agent/1.0 (+github actions)"}
 
+# Words needed to fill the target speech time, plus a comfortable spread.
+_TARGET_WORDS = round(config.TARGET_SECONDS * config.SPEAKING_WPS)
+_WORDS_LO = round(config.TARGET_SECONDS_MIN * config.SPEAKING_WPS) + 10
+_WORDS_HI = round(config.TARGET_SECONDS_MAX * config.SPEAKING_WPS) - 10
+_MIN_BEATS = 6
+_MAX_BEATS = 10
+
 _SCHEMA_HINT = (
     '{"title": str<=90, "hook": str, '
-    '"beats": [{"say": str, "visual": str}] (5-7 items), '
+    f'"beats": [{{"say": str, "visual": str}}] ({_MIN_BEATS}-{_MAX_BEATS} items), '
     '"cta": str, "description": str, "tags": [str], "hashtags": [str]}'
 )
 
@@ -40,16 +51,32 @@ _PROMPT = textwrap.dedent(
       the correction the payoff. Never invent statistics.
     - Spoken style: short punchy 2nd-person sentences. No markdown, no emojis,
       no "in this video", no stage directions.
-    - Narration (hook + all beats) = 95 to 135 words total.
-    - 5 to 7 beats. Each beat = ONE sentence + a concrete visual search phrase
-      using real nouns a stock library would have ("humpback whale underwater",
-      not "wonder" or "mystery").
+    - Narration = hook + every beat + cta, {words_lo} to {words_hi} words TOTAL
+      (aim for {words_target}). This must fill about {seconds} seconds of speech,
+      so do NOT stop early - keep adding real detail, context and examples.
+    - {beats_lo} to {beats_hi} beats. Each beat = one or two sentences plus a
+      concrete visual search phrase using real nouns a stock library would have
+      ("humpback whale underwater", "aurora over snow", not "wonder" or
+      "mystery").
     - Title <= 90 chars, curiosity-driven, no ALL CAPS, no false promise.
 
     Output ONLY minified JSON, no code fences, matching:
     {schema}
     """
 )
+
+
+def _prompt_for(topic: str) -> str:
+    return _PROMPT.format(
+        topic=topic,
+        schema=_SCHEMA_HINT,
+        words_lo=_WORDS_LO,
+        words_hi=_WORDS_HI,
+        words_target=_TARGET_WORDS,
+        seconds=config.TARGET_SECONDS,
+        beats_lo=_MIN_BEATS,
+        beats_hi=_MAX_BEATS,
+    )
 
 
 def _extract_json(text: str) -> dict:
@@ -61,7 +88,7 @@ def _extract_json(text: str) -> dict:
 
 
 def _via_pollinations(topic: str) -> dict | None:
-    prompt = _PROMPT.format(topic=topic, schema=_SCHEMA_HINT)
+    prompt = _prompt_for(topic)
     for model in ("openai", "mistral", "openai-large"):
         try:
             r = requests.post(
@@ -88,7 +115,7 @@ def _via_pollinations(topic: str) -> dict | None:
 def _via_gemini(topic: str) -> dict | None:
     if not config.GEMINI_API_KEY:
         return None
-    prompt = _PROMPT.format(topic=topic, schema=_SCHEMA_HINT)
+    prompt = _prompt_for(topic)
     for model in ("gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"):
         try:
             r = requests.post(
@@ -129,17 +156,41 @@ def _wikipedia_summary(topic: str) -> str:
         return ""
 
 
+# Filler used only by the last-resort template, kept plain and non-spammy. It
+# only runs when both model APIs are down, and exists so the day still ships.
+_TEMPLATE_FILLER = [
+    "The story behind {topic} is stranger than the version most people repeat.",
+    "The common explanation sounds right, but the measurements tell a different tale.",
+    "Researchers pinned it down by testing the obvious answer and watching it fail.",
+    "It comes down to simple physics, chemistry and a lot of time.",
+    "The effect is small on any single day, yet it adds up in a way you can measure.",
+    "Once someone points it out, you start noticing it almost everywhere.",
+    "This one fact quietly connects to a much bigger picture in science and history.",
+    "It is the kind of detail that changes how you look at something ordinary.",
+    "The records are consistent, checked and re-checked over many years.",
+    "Understanding why it happens is more satisfying than the myth ever was.",
+]
+
+
 def _template(topic: str) -> dict:
     extract = _wikipedia_summary(topic)
-    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", extract) if len(s.strip()) > 25][:5]
-    if len(sentences) < 3:
-        sentences = [
-            f"Here is something surprising about {topic}.",
-            "Most people get this completely wrong.",
-            "The real explanation is stranger than the myth.",
-            "Once you know it, you cannot unsee it.",
-        ]
-    beats = [{"say": s, "visual": topic} for s in sentences]
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", extract) if len(s.strip()) > 20]
+    sentences = sentences[:_MAX_BEATS]
+
+    seed = [
+        f"Here is something surprising about {topic}.",
+        f"Here is what actually makes {topic} worth knowing.",
+    ]
+    body = sentences or seed
+    i = 0
+    # Fill towards the top of the beat range so the narration is long enough
+    # for the 50-80s window even with no model help.
+    while len(body) < _MAX_BEATS - 1:
+        body.append(_TEMPLATE_FILLER[i % len(_TEMPLATE_FILLER)].format(topic=topic))
+        i += 1
+    body = body[:_MAX_BEATS]
+
+    beats = [{"say": s, "visual": topic} for s in body]
     hook = f"Did you know this about {topic}?"
     return {
         "title": f"The truth about {topic}"[:90],
@@ -189,12 +240,14 @@ def _normalise(topic: str, data: dict) -> dict:
         "tags": tags,
         "hashtags": hashtags,
         "word_count": len(narration.split()),
+        "target_seconds": config.TARGET_SECONDS,
     }
 
 
 def build(topic: str) -> dict:
     raw = _via_pollinations(topic) or _via_gemini(topic)
     source = "pollinations/gemini"
+    script: dict | None = None
     if raw:
         try:
             script = _normalise(topic, raw)
@@ -204,8 +257,15 @@ def build(topic: str) -> dict:
     if not raw:
         script = _normalise(topic, _template(topic))
         source = "template"
+
+    assert script is not None
+    if script["word_count"] < _WORDS_LO * 0.7:
+        print(f"[script] WARNING: only {script['word_count']} words "
+              f"(< {_WORDS_LO}); tts.py slows down, video.py pads to "
+              f"{config.TARGET_SECONDS_MIN}s")
     print(
         f"[script] via {source}: {script['title']!r} "
-        f"({script['word_count']} words, {len(script['beats'])} beats)"
+        f"({script['word_count']} words ~ target {_TARGET_WORDS}, "
+        f"{len(script['beats'])} beats)"
     )
     return script

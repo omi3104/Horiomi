@@ -1,19 +1,20 @@
 {
   "name": "yt-shorts-agent",
-  "version": "1.0.0",
-  "description": "A hands-off pipeline that every day:",
-  "main": "index.js",
+  "version": "1.1.0",
+  "description": "Hands-off daily 'evergreen facts' YouTube Shorts pipeline.",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "token": "node scripts/get-token.mjs",
+    "push-secrets": "node scripts/push-secrets.mjs",
+    "make-icons": "node docs/make-icons.mjs"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/omi3104/YT-Agent.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "keywords": ["youtube", "shorts", "automation", "ffmpeg", "faceless"],
+  "author": "omi3104",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/omi3104/YT-Agent/issues"
   },

@@ -14,7 +14,7 @@ import os
 import sys
 import traceback
 
-from . import captions, config, media, script_gen, state, tts, trends, video
+from . import captions, config, media, script_gen, state, tts, trends, util, video
 
 
 def _summary(lines: list[str]) -> None:
@@ -35,15 +35,18 @@ def run() -> int:
     print(f"\n=== TOPIC: {topic}  (source: {picked['source']}) ===\n")
 
     script = script_gen.build(topic)
+
+    media_items = media.fetch_for_beats(script["beats"])
+    audio, _speech_secs, spoken = tts.synthesize(script["narration"])
+    script["narration_spoken"] = spoken
+    ass = captions.build(audio, spoken)
+    video_path = video.render(media_items, script["beats"], audio, ass)
+    script["duration_seconds"] = round(util.probe_duration(video_path), 1)
+
     (config.OUT / f"script_{date}.json").write_text(
         json.dumps({"picked": picked, "script": script}, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
-
-    media_items = media.fetch_for_beats(script["beats"])
-    audio = tts.synthesize(script["narration"])
-    ass = captions.build(audio, script["narration"])
-    video_path = video.render(media_items, script["beats"], audio, ass)
 
     result: dict = {}
     if config.DRY_RUN:
@@ -53,14 +56,25 @@ def run() -> int:
             f"- **Topic:** {topic}",
             f"- **Title:** {script['title']}",
             f"- **File:** `{os.path.basename(video_path)}` (see workflow artifact)",
+            f"- **Length:** {script['duration_seconds']}s "
+            f"(target {config.TARGET_SECONDS_MIN}-{config.TARGET_SECONDS_MAX}s)",
             f"- **Words:** {script['word_count']}  •  **Beats:** {len(script['beats'])}",
         ])
     else:
         result = youtube_and_drive(video_path, script)
+        state.record(topic, script["title"], result.get("video_id"))
 
-    state.record(topic, script["title"], result.get("video_id"))
+    state.write_last_run(picked, script, result)
     (config.OUT / f"result_{date}.json").write_text(
-        json.dumps({"topic": topic, "script_title": script["title"], **result}, indent=2, ensure_ascii=False),
+        json.dumps(
+            {
+                "topic": topic,
+                "script_title": script["title"],
+                "duration_seconds": script["duration_seconds"],
+                **result,
+            },
+            indent=2, ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -69,6 +83,7 @@ def run() -> int:
             "## Short uploaded (Private)",
             f"- **Topic:** {topic}",
             f"- **Title:** {script['title']}",
+            f"- **Length:** {script['duration_seconds']}s",
             f"- **Review / publish:** {result.get('studio_url', '')}",
             f"- **Link:** {result.get('url', '')}",
         ])
