@@ -1,18 +1,72 @@
 {
-  "date": null,
-  "generated_at": null,
-  "topic": null,
-  "title": null,
-  "description": null,
-  "tags": [],
-  "hashtags": [],
-  "beats": [],
-  "word_count": null,
-  "duration_seconds": null,
-  "target_window": [50, 80],
+  "date": "2026-09-02",
+  "generated_at": "2026-09-02T07:10:28.316405+00:00",
+  "topic": "how sharks existed before trees",
+  "topic_source": "fallback-bank",
+  "topic_url": "",
+  "title": "The truth about how sharks existed before trees",
+  "hook": "Did you know this about how sharks existed before trees?",
+  "description": "A quick fact about how sharks existed before trees.\n\nFollow for a new fact every day.\n#shorts #facts #didyouknow",
+  "tags": [
+    "facts",
+    "did you know",
+    "shorts",
+    "educational",
+    "science"
+  ],
+  "hashtags": [
+    "#shorts",
+    "#facts",
+    "#didyouknow"
+  ],
+  "beats": [
+    {
+      "say": "The great white shark, also known as the white shark, white pointer, or great white, is a large shark.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "It is closely related to the mako sharks, the porbeagle, and the salmon shark.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "It is a robustly built species with a grayish upperside and a white underside.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "The white shark is one of the largest living shark and fish species, though it is still smaller than the whale shark and basking shark.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "It has about 300 triangular, serrated teeth that are continuously replaced.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "Its massive, fatty liver can reach over a quarter of its body weight, providing buoyancy and storing energy.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "The species is partially warm-blooded, an adaptation that allows it to remain active in colder waters.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "The story behind how sharks existed before trees is stranger than the version most people repeat.",
+      "visual": "how sharks existed before trees"
+    },
+    {
+      "say": "The common explanation sounds right, but the measurements tell a different tale.",
+      "visual": "how sharks existed before trees"
+    }
+  ],
+  "word_count": 162,
+  "duration_seconds": 53.9,
+  "target_window": [
+    50,
+    80
+  ],
   "privacy": "private",
-  "dry_run": null,
-  "video_id": null,
-  "youtube_url": null,
-  "studio_url": null
+  "dry_run": false,
+  "video_id": "qBkWTMcuAjc",
+  "youtube_url": "https://youtu.be/qBkWTMcuAjc",
+  "studio_url": "https://studio.youtube.com/video/qBkWTMcuAjc/edit",
+  "uploaded_at": "2026-09-02T07:10:28.315967+00:00"
 }
