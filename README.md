@@ -242,9 +242,12 @@ No other file needs to change.
 free from **GitHub Pages**. It is a *control panel*, not the worker: the video
 is still built in the cloud so it runs with your phone off.
 
-**Enable it once:** repo → **Settings → Pages** → Source = **Deploy from a
-branch**, Branch = **main**, Folder = **`/docs`** → Save. After a minute the
-URL is `https://<you>.github.io/<repo>/`.
+**Publishing is automatic.** The `deploy-pwa` workflow deploys `docs/` on every
+push that touches it and enables Pages for you on first run. After the first
+successful run the URL shows at **Settings → Pages** and in the run summary —
+usually `https://<you>.github.io/<repo>/`. (Run it manually once now: repo →
+**Actions → deploy-pwa → Run workflow**.) On a **private** repo GitHub Pages
+needs Pro/Team; on a free private repo make the repo public instead.
 
 **Install on iPhone:** open that URL in **Safari** → Share → **Add to Home
 Screen**. It opens full-screen like a native app.
