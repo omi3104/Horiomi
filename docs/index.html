@@ -148,8 +148,20 @@
 
 <script>
 const $ = (s) => document.querySelector(s);
+
+// Guess owner/repo from a GitHub Pages URL (owner.github.io/repo/...), so a
+// repo rename doesn't strand the app. Overridden by whatever you save in settings.
+function guessRepo(){
+  try {
+    const m = location.hostname.match(/^([\w-]+)\.github\.io$/i);
+    const seg = location.pathname.split("/").filter(Boolean)[0];
+    if (m && seg) return `${m[1]}/${seg}`;
+  } catch {}
+  return "omi3104/YT-Agent";
+}
+
 const LS = {
-  get repo(){ return localStorage.getItem("ytagent.repo") || "omi3104/YT-Agent"; },
+  get repo(){ return localStorage.getItem("ytagent.repo") || guessRepo(); },
   set repo(v){ localStorage.setItem("ytagent.repo", v); },
   get tok(){ return localStorage.getItem("ytagent.token") || ""; },
   set tok(v){ v ? localStorage.setItem("ytagent.token", v) : localStorage.removeItem("ytagent.token"); },

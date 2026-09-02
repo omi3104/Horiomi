@@ -18,7 +18,7 @@
 import http from "node:http";
 import { exec } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { pushSecrets, ghTokenFromGitCredential } from "./push-secrets.mjs";
+import { pushSecrets, ghTokenFromGitCredential, targetRepo } from "./push-secrets.mjs";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, env } from "node:process";
 
@@ -139,7 +139,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 2) push the same values straight to GitHub Actions secrets
-    const repo = process.env.GH_REPO || "omi3104/YT-Agent";
+    const repo = targetRepo();
     try {
       const ghToken = process.env.GITHUB_TOKEN || (await ghTokenFromGitCredential());
       if (!ghToken) throw new Error("no GitHub token from git credential / GITHUB_TOKEN");

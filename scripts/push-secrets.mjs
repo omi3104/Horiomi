@@ -12,13 +12,30 @@
  *
  * Auth: uses $GITHUB_TOKEN if set, otherwise whatever `git credential fill`
  * returns for github.com (Git Credential Manager). The token needs `repo` scope.
- * Target repo: $GH_REPO or the default below.
+ * Target repo: $GH_REPO, else derived from `git remote get-url origin`, else the
+ * fallback below - so renaming the repo does not break this.
  */
 import sodium from "libsodium-wrappers";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const DEFAULT_REPO = "omi3104/YT-Agent";
+const FALLBACK_REPO = "omi3104/YT-Agent";
+
+export function repoFromGit() {
+  try {
+    const url = execFileSync("git", ["remote", "get-url", "origin"], {
+      encoding: "utf8",
+    }).trim();
+    const m = url.match(/github\.com[:/]+([^/]+\/[^/]+?)(?:\.git)?\/?$/i);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+export function targetRepo() {
+  return process.env.GH_REPO || repoFromGit() || FALLBACK_REPO;
+}
 
 // Every secret name the pipeline understands. Only the ones with a value in
 // .env are pushed; the rest are skipped.
@@ -97,7 +114,7 @@ function readEnv() {
 
 // --- standalone entrypoint ---
 if (process.argv[1] && process.argv[1].replace(/\\/g, "/").endsWith("scripts/push-secrets.mjs")) {
-  const repo = process.env.GH_REPO || DEFAULT_REPO;
+  const repo = targetRepo();
   const token = process.env.GITHUB_TOKEN || (await ghTokenFromGitCredential());
   if (!token) {
     console.error("No GitHub token (set GITHUB_TOKEN or sign in so `git credential fill` works).");
