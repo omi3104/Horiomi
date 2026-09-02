@@ -1,12 +1,14 @@
 name: deploy-pwa
 
 # Publishes docs/ (the iPhone remote-control PWA) to GitHub Pages.
-# configure-pages auto-enables Pages the first time this runs, so you do not
-# need to touch Settings -> Pages by hand. The site URL is printed in the run
-# summary and at Settings -> Pages afterwards.
 #
-# Note: Pages on a PRIVATE repo needs GitHub Pro/Team. On a free private repo
-# this job will fail at "configure-pages" - make the repo public or upgrade.
+# ONE-TIME SETUP: repo -> Settings -> Pages -> Build and deployment ->
+# Source -> "GitHub Actions". (The workflow token cannot turn Pages on by
+# itself - that is a GitHub restriction, not a bug here.) Pages also needs
+# the repo to be public, or GitHub Pro/Team on a private repo.
+#
+# After that, this runs on every push under docs/ and on manual dispatch.
+# The site URL is printed in the run summary and at Settings -> Pages.
 
 on:
   push:
@@ -34,10 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure Pages (auto-enables it)
+      - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload docs/ as the Pages artifact
         uses: actions/upload-pages-artifact@v3
