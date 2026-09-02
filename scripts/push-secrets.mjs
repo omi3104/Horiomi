@@ -3,10 +3,12 @@
  * Set GitHub Actions repository secrets via the REST API (libsodium sealed box).
  *
  * Used two ways:
- *   - imported by get-token.mjs to push the freshly-minted values automatically
+ *   - imported by get-token.mjs to push the freshly-minted Google values
  *   - standalone:  node scripts/push-secrets.mjs
- *     (reads KEY=VALUE lines from ../.env and pushes GOOGLE_CLIENT_ID,
- *      GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN)
+ *     Reads KEY=VALUE lines from ../.env and pushes every recognised secret
+ *     that has a value: the three GOOGLE_* credentials plus the optional
+ *     GEMINI_API_KEY, PEXELS_API_KEY, PIXABAY_API_KEY, COVERR_API_KEY and
+ *     DRIVE_FOLDER_ID. Run it again any time you add a key to .env.
  *
  * Auth: uses $GITHUB_TOKEN if set, otherwise whatever `git credential fill`
  * returns for github.com (Git Credential Manager). The token needs `repo` scope.
@@ -17,6 +19,19 @@ import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const DEFAULT_REPO = "omi3104/YT-Agent";
+
+// Every secret name the pipeline understands. Only the ones with a value in
+// .env are pushed; the rest are skipped.
+const KNOWN_SECRETS = [
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_REFRESH_TOKEN",
+  "GEMINI_API_KEY",
+  "PEXELS_API_KEY",
+  "PIXABAY_API_KEY",
+  "COVERR_API_KEY",
+  "DRIVE_FOLDER_ID",
+];
 
 export function ghTokenFromGitCredential() {
   return new Promise((resolve) => {
@@ -88,12 +103,14 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, "/").endsWith("scripts/pus
     process.exit(1);
   }
   const env = readEnv();
+  const secrets = {};
+  for (const name of KNOWN_SECRETS) if (env[name]) secrets[name] = env[name];
+  if (!Object.keys(secrets).length) {
+    console.error("No recognised KEY=VALUE lines found in .env - nothing to push.");
+    process.exit(1);
+  }
   console.log(`Setting secrets on ${repo}:`);
-  await pushSecrets(repo, token, {
-    GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET,
-    GOOGLE_REFRESH_TOKEN: env.GOOGLE_REFRESH_TOKEN,
-  });
+  await pushSecrets(repo, token, secrets);
   console.log("Done.");
   process.exit(0);
 }
