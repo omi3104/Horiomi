@@ -75,7 +75,8 @@ GOOGLE_CLIENT_SECRET = lambda: require("GOOGLE_CLIENT_SECRET")  # noqa: E731
 GOOGLE_REFRESH_TOKEN = lambda: require("GOOGLE_REFRESH_TOKEN")  # noqa: E731
 
 # --- OPTIONAL: quality upgrades. Blank = that source is skipped. ----------
-GEMINI_API_KEY = get("GEMINI_API_KEY")     # better scripts + AI images if set
+GROQ_API_KEY = get("GROQ_API_KEY")         # script writer, tried first if set
+GEMINI_API_KEY = get("GEMINI_API_KEY")     # script fallback + AI images if set
 PEXELS_API_KEY = get("PEXELS_API_KEY")     # real stock VIDEO + photos if set
 PIXABAY_API_KEY = get("PIXABAY_API_KEY")   # extra stock video + photo source
 COVERR_API_KEY = get("COVERR_API_KEY")     # cinematic free stock video if set

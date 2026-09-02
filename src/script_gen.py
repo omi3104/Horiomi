@@ -1,9 +1,10 @@
 """Turn a topic string into a structured short-video script.
 
 Writer priority (first that works wins):
-  1. Pollinations text API   - keyless, free
-  2. Gemini API              - only if GEMINI_API_KEY is set (optional upgrade)
-  3. Wikipedia-backed template - keyless last resort so the daily job never dies
+  1. Groq API                - only if GROQ_API_KEY is set (fast, reliable free tier)
+  2. Gemini API              - only if GEMINI_API_KEY is set
+  3. Pollinations text API   - keyless, free (often paywalled/renamed now)
+  4. Wikipedia-backed template - keyless last resort so the daily job never dies
 
 The narration is sized to roughly config.TARGET_SECONDS of speech so the
 finished short lands inside the 50-80s window (tts.py + video.py enforce the
@@ -85,6 +86,79 @@ def _extract_json(text: str) -> dict:
     if s != -1 and e != -1:
         text = text[s : e + 1]
     return json.loads(text)
+
+
+_GROQ_URL = "https://api.groq.com/openai/v1"
+# Non-reasoning chat models first (reasoning traces can eat the token budget and
+# truncate the JSON). Concrete ids are fallbacks behind live discovery.
+_GROQ_MODELS = (
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "moonshotai/kimi-k2-instruct",
+    "qwen/qwen3-32b",
+    "openai/gpt-oss-120b",
+)
+_GROQ_SKIP = ("whisper", "tts", "guard", "embed", "distil", "allam", "vision")
+
+
+def _groq_discover_model() -> str | None:
+    try:
+        r = requests.get(f"{_GROQ_URL}/models",
+                         headers={"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA}, timeout=30)
+        if not r.ok:
+            print(f"[script] groq list-models HTTP {r.status_code} {r.text[:160]!r}")
+            return None
+        ids = [m.get("id", "") for m in r.json().get("data", [])]
+        chat = [i for i in ids if i and not any(b in i.lower() for b in _GROQ_SKIP)]
+        pick = (next((i for i in chat if "llama-3.3-70b" in i), None)
+                or next((i for i in chat if "versatile" in i or "instant" in i), None)
+                or (chat[0] if chat else None))
+        if pick:
+            print(f"[script] groq discovered model: {pick}")
+        return pick
+    except Exception as exc:  # noqa: BLE001
+        print(f"[script] groq list-models failed: {exc}")
+        return None
+
+
+def _via_groq(topic: str) -> dict | None:
+    if not config.GROQ_API_KEY:
+        return None
+    prompt = _prompt_for(topic)
+    tried: list[str] = list(_GROQ_MODELS)
+    discovered = _groq_discover_model()
+    if discovered and discovered not in tried:
+        tried.insert(0, discovered)
+    for model in tried:
+        try:
+            r = requests.post(
+                f"{_GROQ_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA},
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": "You output only minified JSON. No prose, no code fences."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.9,
+                    "max_tokens": 2000,
+                },
+                timeout=60,
+            )
+            if not r.ok:
+                print(f"[script] groq({model}) HTTP {r.status_code} {r.text[:200]!r}")
+                continue
+            msg = (r.json().get("choices") or [{}])[0].get("message", {}).get("content", "") or ""
+            if not msg.strip():
+                print(f"[script] groq({model}) empty content")
+                continue
+            out = _extract_json(msg)
+            print(f"[script] groq ok via {model}")
+            return out
+        except Exception as exc:  # noqa: BLE001
+            print(f"[script] groq({model}) failed: {exc}")
+    return None
 
 
 def _via_pollinations(topic: str) -> dict | None:
@@ -290,18 +364,22 @@ def _normalise(topic: str, data: dict) -> dict:
 
 
 def build(topic: str) -> dict:
-    # Gemini first when a key is set (reliable); otherwise the keyless service.
-    if config.GEMINI_API_KEY:
-        raw = _via_gemini(topic) or _via_pollinations(topic)
-    else:
-        raw = _via_pollinations(topic) or _via_gemini(topic)
-    source = "gemini/pollinations"
+    # Each provider self-skips if its key is unset, so this is just priority
+    # order: Groq -> Gemini -> Pollinations -> Wikipedia template.
+    raw: dict | None = None
+    source = "template"
+    for name, fn in (("groq", _via_groq), ("gemini", _via_gemini), ("pollinations", _via_pollinations)):
+        raw = fn(topic)
+        if raw:
+            source = name
+            break
+
     script: dict | None = None
     if raw:
         try:
             script = _normalise(topic, raw)
         except Exception as exc:  # noqa: BLE001
-            print(f"[script] model output rejected ({exc}); using template")
+            print(f"[script] {source} output rejected ({exc}); using template")
             raw = None
     if not raw:
         script = _normalise(topic, _template(topic))

@@ -5,9 +5,10 @@ A hands-off pipeline that every day:
 1. **Finds a fresh topic** — top posts from r/todayilearned / r/science /
    r/Damnthatsinteresting, lightly boosted by Google Trends, de-duplicated
    against everything it has already used.
-2. **Writes a script** — Pollinations text API (keyless). Falls back to Gemini
-   if you add a key, then to a Wikipedia-seeded template so it never stalls.
-   The narration is sized to land the finished short at **50–80 seconds**.
+2. **Writes a script** — Groq if you add a key (fast, reliable free tier), then
+   Gemini, then the keyless Pollinations text API, then a Wikipedia-seeded
+   template so it never stalls. The narration is sized to land the finished
+   short at **50–80 seconds**.
 3. **Sources visuals** — one clip/image per beat. Real **stock video** first
    (Pexels / Pixabay / Coverr with a free key, plus keyless Wikimedia Commons
    video), then real photos (Openverse, Wikimedia), then AI images
@@ -32,7 +33,7 @@ You review each day's Private upload and hit Publish when you're happy.
 | Step | Service | Key needed? |
 |---|---|---|
 | Topics | Reddit JSON, Google Trends RSS | no |
-| Script | Pollinations text (`text.pollinations.ai`) | no |
+| Script | Groq / Gemini if keyed, else Pollinations text, else template | free key = much better |
 | Stock video | Wikimedia Commons (keyless); Pexels / Pixabay / Coverr | free key = much better |
 | Real photos | Openverse API, Wikimedia Commons API | no |
 | AI images | Pollinations image (`image.pollinations.ai`) | no |
@@ -46,9 +47,10 @@ The **only** credential the pipeline needs is OAuth for *your own* YouTube
 channel. Google requires the channel owner to authorise the app once — nobody
 can bypass that. After the one-time step below it runs untouched.
 
-Optional keys (`PEXELS_API_KEY`, `PIXABAY_API_KEY`, `COVERR_API_KEY`,
-`GEMINI_API_KEY`) only raise quality; the pipeline is fully functional without
-them. In practice you want **at least one stock-video key** — see
+Optional keys (`GROQ_API_KEY`, `GEMINI_API_KEY`, `PEXELS_API_KEY`,
+`PIXABAY_API_KEY`, `COVERR_API_KEY`) only raise quality; the pipeline is fully
+functional without them. In practice you want a **script key** (`GROQ_API_KEY`)
+and **at least one stock-video key** — see
 [Stock media API keys](#stock-media-api-keys-recommended) — or every beat is a
 still image.
 
@@ -132,9 +134,9 @@ secret**. Add:
 | `GOOGLE_CLIENT_SECRET` | from step 2 |
 | `GOOGLE_REFRESH_TOKEN` | from step 3 |
 
-Optional secrets: `PEXELS_API_KEY`, `PIXABAY_API_KEY`, `COVERR_API_KEY`,
-`GEMINI_API_KEY`, `DRIVE_FOLDER_ID` (the id in a Drive folder URL — the pipeline
-drops the day's `.mp4` + `.json` there for review). See
+Optional secrets: `GROQ_API_KEY`, `GEMINI_API_KEY`, `PEXELS_API_KEY`,
+`PIXABAY_API_KEY`, `COVERR_API_KEY`, `DRIVE_FOLDER_ID` (the id in a Drive folder
+URL — the pipeline drops the day's `.mp4` + `.json` there for review). See
 [Stock media API keys](#stock-media-api-keys-recommended) for how to get the
 three stock keys.
 
@@ -214,11 +216,23 @@ can download; stills are only used when no video source has a match.
    <https://api.coverr.co>) and create a key.
 3. Copy it → repo secret **`COVERR_API_KEY`**.
 
-### Gemini (optional) — sharper scripts + AI images
+### Groq (recommended) — the script writer
+
+Fast, dependable free tier; tried first for the script.
+
+1. Sign in at <https://console.groq.com/> (free, Google/GitHub login).
+2. <https://console.groq.com/keys> → **Create API Key** → copy (`gsk_…`).
+3. Repo secret **`GROQ_API_KEY`**.
+
+One ~1k-token call per day sits far inside the free limits. Uses
+`llama-3.3-70b-versatile` and self-discovers a replacement if that model is ever
+retired.
+
+### Gemini (optional) — script fallback + AI images
 
 <https://aistudio.google.com/apikey> → **Create API key** → repo secret
-**`GEMINI_API_KEY`**. Not a stock source, but improves the script and adds an
-AI-image fallback above Pollinations.
+**`GEMINI_API_KEY`**. Used if Groq is unset or fails, and adds an AI-image
+fallback above Pollinations.
 
 > Turn motion footage off entirely with the `PREFER_VIDEO=false` variable —
 > then the pipeline only ever uses stills.
