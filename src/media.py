@@ -261,31 +261,35 @@ def _wikimedia_photo(q: str, stem: str) -> str | None:
 
 
 # --- AI images ----------------------------------------------------------
+_GEMINI_IMAGE_MODELS = (
+    "gemini-2.5-flash-image-preview",
+    "gemini-2.5-flash-image",
+    "gemini-2.0-flash-preview-image-generation",
+)
+
+
 def _gemini_image(prompt: str, stem: str) -> str | None:
     if not config.GEMINI_API_KEY:
         return None
-    url = ("https://generativelanguage.googleapis.com/v1beta/models/"
-           "gemini-2.0-flash-preview-image-generation:generateContent")
-    try:
-        r = requests.post(
-            url, params={"key": config.GEMINI_API_KEY},
-            json={
-                "contents": [{"parts": [{"text": f"Vertical 9:16 photorealistic, no text, cinematic: {prompt}"}]}],
-                "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]},
-            },
-            timeout=90,
-        )
-        if not r.ok:
-            print(f"[media]   gemini image HTTP {r.status_code}")
-            return None
-        for part in r.json()["candidates"][0]["content"]["parts"]:
-            inline = part.get("inlineData") or part.get("inline_data")
-            if inline and inline.get("data"):
-                path = MEDIA_DIR / f"{stem}.png"
-                path.write_bytes(base64.b64decode(inline["data"]))
-                return str(path)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[media]   gemini image error: {exc}")
+    payload = {
+        "contents": [{"parts": [{"text": f"Vertical 9:16 photorealistic, no text, cinematic: {prompt}"}]}],
+        "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]},
+    }
+    for model in _GEMINI_IMAGE_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        try:
+            r = requests.post(url, params={"key": config.GEMINI_API_KEY}, json=payload, timeout=90)
+            if not r.ok:
+                print(f"[media]   gemini image {model} HTTP {r.status_code} {r.text[:120]!r}")
+                continue
+            for part in (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts", []):
+                inline = part.get("inlineData") or part.get("inline_data")
+                if inline and inline.get("data"):
+                    path = MEDIA_DIR / f"{stem}.png"
+                    path.write_bytes(base64.b64decode(inline["data"]))
+                    return str(path)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[media]   gemini image {model} error: {exc}")
     return None
 
 

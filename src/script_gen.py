@@ -89,51 +89,96 @@ def _extract_json(text: str) -> dict:
 
 def _via_pollinations(topic: str) -> dict | None:
     prompt = _prompt_for(topic)
-    for model in ("openai", "mistral", "openai-large"):
+    # "" = let the server pick its current free default. Names change often and
+    # some are now paywalled (HTTP 402), so try the default first.
+    for model in ("", "openai-fast", "mistral", "llama", "gemini", "openai"):
+        body = {
+            "messages": [{"role": "user", "content": prompt}],
+            "jsonMode": True,
+            "private": True,
+            "referrer": "yt-shorts-agent",
+        }
+        if model:
+            body["model"] = model
+        tag = model or "default"
         try:
-            r = requests.post(
-                "https://text.pollinations.ai/",
-                headers=UA,
-                json={
-                    "messages": [{"role": "user", "content": prompt}],
-                    "model": model,
-                    "jsonMode": True,
-                    "private": True,
-                    "referrer": "yt-shorts-agent",
-                },
-                timeout=90,
-            )
+            r = requests.post("https://text.pollinations.ai/", headers=UA, json=body, timeout=90)
             if not r.ok:
-                print(f"[script] pollinations({model}) HTTP {r.status_code}")
+                print(f"[script] pollinations({tag}) HTTP {r.status_code} {r.text[:160]!r}")
                 continue
             return _extract_json(r.text)
         except Exception as exc:  # noqa: BLE001
-            print(f"[script] pollinations({model}) failed: {exc}")
+            print(f"[script] pollinations({tag}) failed: {exc}")
     return None
+
+
+_GEMINI_HOST = "https://generativelanguage.googleapis.com"
+# "-latest" aliases track whatever Google currently ships, so they survive the
+# regular model retirements; concrete ids are fallbacks.
+_GEMINI_MODELS = ("gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-pro-latest")
+
+
+def _gemini_discover_model(api_version: str) -> str | None:
+    """Ask the API which models are actually available to this key."""
+    try:
+        r = requests.get(f"{_GEMINI_HOST}/{api_version}/models",
+                         params={"key": config.GEMINI_API_KEY}, headers=UA, timeout=30)
+        if not r.ok:
+            print(f"[script] gemini list-models HTTP {r.status_code} {r.text[:160]!r}")
+            return None
+        models = r.json().get("models", [])
+        usable = [
+            m["name"].split("/")[-1] for m in models
+            if "generateContent" in m.get("supportedGenerationMethods", [])
+        ]
+        # Prefer a flash model, else the first that works.
+        pick = next((n for n in usable if "flash" in n and "vision" not in n), None) or (usable[0] if usable else None)
+        if pick:
+            print(f"[script] gemini discovered model: {pick}")
+        return pick
+    except Exception as exc:  # noqa: BLE001
+        print(f"[script] gemini list-models failed: {exc}")
+        return None
+
+
+def _gemini_call(api_version: str, model: str, prompt: str) -> dict | None:
+    r = requests.post(
+        f"{_GEMINI_HOST}/{api_version}/models/{model}:generateContent",
+        params={"key": config.GEMINI_API_KEY},
+        json={
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.9, "responseMimeType": "application/json"},
+        },
+        timeout=60,
+    )
+    if not r.ok:
+        print(f"[script] gemini({api_version}/{model}) HTTP {r.status_code} {r.text[:200]!r}")
+        return None
+    cands = r.json().get("candidates") or []
+    if not cands:
+        print(f"[script] gemini({model}) no candidates {r.text[:200]!r}")
+        return None
+    parts = cands[0].get("content", {}).get("parts", [])
+    return _extract_json("".join(p.get("text", "") for p in parts))
 
 
 def _via_gemini(topic: str) -> dict | None:
     if not config.GEMINI_API_KEY:
         return None
     prompt = _prompt_for(topic)
-    for model in ("gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"):
-        try:
-            r = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                params={"key": config.GEMINI_API_KEY},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"temperature": 0.9, "responseMimeType": "application/json"},
-                },
-                timeout=60,
-            )
-            if not r.ok:
-                print(f"[script] gemini({model}) HTTP {r.status_code}")
-                continue
-            parts = r.json()["candidates"][0]["content"]["parts"]
-            return _extract_json("".join(p.get("text", "") for p in parts))
-        except Exception as exc:  # noqa: BLE001
-            print(f"[script] gemini({model}) failed: {exc}")
+    for api_version in ("v1beta", "v1"):
+        tried: list[str] = list(_GEMINI_MODELS)
+        discovered = _gemini_discover_model(api_version)
+        if discovered and discovered not in tried:
+            tried.insert(0, discovered)
+        for model in tried:
+            try:
+                out = _gemini_call(api_version, model, prompt)
+                if out:
+                    print(f"[script] gemini ok via {api_version}/{model}")
+                    return out
+            except Exception as exc:  # noqa: BLE001
+                print(f"[script] gemini({model}) failed: {exc}")
     return None
 
 
@@ -245,8 +290,12 @@ def _normalise(topic: str, data: dict) -> dict:
 
 
 def build(topic: str) -> dict:
-    raw = _via_pollinations(topic) or _via_gemini(topic)
-    source = "pollinations/gemini"
+    # Gemini first when a key is set (reliable); otherwise the keyless service.
+    if config.GEMINI_API_KEY:
+        raw = _via_gemini(topic) or _via_pollinations(topic)
+    else:
+        raw = _via_pollinations(topic) or _via_gemini(topic)
+    source = "gemini/pollinations"
     script: dict | None = None
     if raw:
         try:
