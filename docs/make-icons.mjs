@@ -5,8 +5,24 @@
  * Produces: icon-192.png, icon-512.png, apple-touch-icon.png (180)
  * Design: dark rounded square + amber "play" triangle.
  */
-import { deflateSync, crc32 } from "node:zlib";
+import { deflateSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
+
+// Small CRC-32 (zlib's crc32 export only exists on Node >= 20.15 / 21).
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
 
 const BG = [14, 17, 22];       // #0E1116
 const AMBER = [224, 168, 46];  // #E0A82E

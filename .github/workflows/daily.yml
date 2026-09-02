@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write             # to commit data/used_topics.json back
+  contents: write             # to commit data/*.json back
 
 jobs:
   build-and-upload:
@@ -27,6 +27,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # full history so the state commit can rebase + push
 
       - uses: actions/setup-python@v5
         with:
@@ -56,24 +58,34 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          COVERR_API_KEY: ${{ secrets.COVERR_API_KEY }}
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
           VOICE: ${{ vars.VOICE || 'en-US-AndrewNeural' }}
           GEO: ${{ vars.GEO || 'US' }}
           YT_CATEGORY_ID: ${{ vars.YT_CATEGORY_ID || '27' }}
           PRIVACY: ${{ vars.PRIVACY || 'private' }}
           WHISPER_MODEL: ${{ vars.WHISPER_MODEL || 'small' }}
+          PREFER_VIDEO: ${{ vars.PREFER_VIDEO || 'true' }}
+          TARGET_SECONDS_MIN: ${{ vars.TARGET_SECONDS_MIN || '50' }}
+          TARGET_SECONDS_MAX: ${{ vars.TARGET_SECONDS_MAX || '80' }}
+          TARGET_SECONDS: ${{ vars.TARGET_SECONDS }}
+          TTS_RATE: ${{ vars.TTS_RATE || '8' }}
           TOPIC_OVERRIDE: ${{ github.event.inputs.topic }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: python -m src.pipeline
 
-      - name: Commit updated topic history
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+      - name: Commit run state
+        if: always()
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/used_topics.json
-          git commit -m "chore: record today's topic [skip ci]" || echo "nothing to commit"
-          git push || echo "push skipped"
+          git add data/used_topics.json data/last_run.json || true
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "chore: record run state [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && break
+            echo "push retry $i"; sleep 5
+          done
 
       - name: Upload build artifacts
         if: always()
