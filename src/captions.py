@@ -15,6 +15,9 @@ ASS_PATH = config.WORK / "captions.ass"
 MAX_WORDS_PER_CUE = 3
 MAX_CUE_SECONDS = 1.7
 
+# Alignment 2 = bottom-centre; MarginV lifts the text up out of the very bottom
+# so it clears the YouTube Shorts UI (progress bar, like/share rail). Tune with
+# the CAPTION_MARGIN_V env var (pixels, PlayResY is 1920).
 _ASS_HEADER = """\
 [Script Info]
 ScriptType: v4.00+
@@ -25,7 +28,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Caption,DejaVu Sans,96,&H00FFFFFF,&H000000FF,&H00101010,&H80000000,-1,0,0,0,100,100,0.6,0,1,6,3,5,80,80,0,1
+Style: Caption,DejaVu Sans,96,&H00FFFFFF,&H000000FF,&H00101010,&H80000000,-1,0,0,0,100,100,0.6,0,1,6,3,2,80,80,{mv},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -98,7 +101,8 @@ def build(audio_path: str, narration: str) -> str:
         words = _even_words(narration, duration)
 
     cues = _cues_from_words(words)
-    lines = [_ASS_HEADER.format(w=config.WIDTH, h=config.HEIGHT)]
+    margin_v = config.get_int("CAPTION_MARGIN_V", 380)
+    lines = [_ASS_HEADER.format(w=config.WIDTH, h=config.HEIGHT, mv=margin_v)]
     for start, end, text in cues:
         fx = r"{\fad(70,60)\t(0,120,\fscx112\fscy112)\t(120,220,\fscx100\fscy100)}"
         lines.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Caption,,0,0,0,,{fx}{_esc(text)}")

@@ -1,7 +1,13 @@
 """Fetch one background clip/image per script beat.
 
-Per beat the sources are tried in order and the first usable file wins. When
-config.PREFER_VIDEO is on (default) every VIDEO source is tried before any
+For each beat several search phrases are derived (the model's visual phrase,
+plus keyword sets pulled from the spoken line) and tried against every source
+until a NEW file downloads. Provider result lists are shuffled with a
+per-beat seed and `_used_urls` blocks repeats, so distinct beats land on
+distinct clips even when their phrasing is similar. If a beat still finds
+nothing it reuses an earlier asset on a rotation (never the same clip 9x).
+
+When config.PREFER_VIDEO is on (default) every VIDEO source is tried before any
 still, so the short is real motion footage wherever possible:
 
   VIDEO   1. Pexels video      - needs PEXELS_API_KEY   (free)
@@ -22,6 +28,8 @@ from __future__ import annotations
 
 import base64
 import mimetypes
+import random
+import re
 import time
 import urllib.parse
 
@@ -36,6 +44,48 @@ _used_urls: set[str] = set()
 _MIN_BYTES = 8_000
 _MAX_VIDEO_BYTES = 90_000_000   # skip huge Commons masters
 _VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v", ".ogv")
+_PER_PAGE = 25   # ask for plenty so distinct beats land on distinct clips
+
+_STOPWORDS = {
+    "the", "a", "an", "of", "to", "in", "on", "for", "and", "or", "is", "are",
+    "was", "were", "be", "why", "how", "what", "that", "this", "these", "those",
+    "it", "its", "as", "at", "by", "with", "from", "into", "than", "then",
+    "too", "very", "so", "you", "your", "they", "their", "them", "not", "no",
+    "can", "will", "just", "about", "over", "under", "more", "most", "some",
+    "one", "two", "there", "here", "when", "which", "while", "because",
+}
+
+
+def _rng(stem: str) -> random.Random:
+    return random.Random(stem)
+
+
+def _clean_query(text: str) -> str:
+    """Turn a sentence / phrase into a stock-library-friendly noun phrase."""
+    words = re.findall(r"[a-zA-Z]{3,}", (text or "").lower())
+    kept = [w for w in words if w not in _STOPWORDS]
+    return " ".join(kept[:6]) or (text or "").strip()
+
+
+def _beat_queries(beat: dict, i: int) -> list[str]:
+    """Ordered, de-duplicated search phrases to try for one beat."""
+    visual = (beat.get("visual") or "").strip()
+    say = beat.get("say") or ""
+    cands = [
+        visual,
+        _clean_query(visual),
+        _clean_query(say),
+        " ".join(_clean_query(say).split()[:3]),
+        " ".join(_clean_query(visual).split()[:2]),
+    ]
+    seen: set[str] = set()
+    out: list[str] = []
+    for c in cands:
+        c = re.sub(r"\s+", " ", c or "").strip()
+        if len(c) >= 3 and c.lower() not in seen:
+            seen.add(c.lower())
+            out.append(c)
+    return out or ["cinematic abstract background"]
 
 
 def _download(url: str, dest_stem: str, kind_hint: str = "") -> str | None:
@@ -82,11 +132,13 @@ def _pexels_video(q: str, stem: str) -> str | None:
             r = requests.get(
                 "https://api.pexels.com/videos/search",
                 headers={"Authorization": config.PEXELS_API_KEY, **UA},
-                params={"query": q, "orientation": orientation, "per_page": 10, "size": "medium"},
+                params={"query": q, "orientation": orientation, "per_page": _PER_PAGE, "size": "medium"},
                 timeout=30,
             )
             r.raise_for_status()
-            for vid in r.json().get("videos", []):
+            vids = r.json().get("videos", [])
+            _rng(stem).shuffle(vids)
+            for vid in vids:
                 files = sorted(
                     vid.get("video_files", []),
                     key=lambda f: abs((f.get("height") or 0) - 1920),
@@ -106,11 +158,13 @@ def _pixabay_video(q: str, stem: str) -> str | None:
     try:
         r = requests.get(
             "https://pixabay.com/api/videos/",
-            params={"key": config.PIXABAY_API_KEY, "q": q, "per_page": 8},
+            params={"key": config.PIXABAY_API_KEY, "q": q, "per_page": _PER_PAGE},
             headers=UA, timeout=30,
         )
         if r.ok:
-            for hit in r.json().get("hits", []):
+            hits = r.json().get("hits", [])
+            _rng(stem).shuffle(hits)
+            for hit in hits:
                 v = hit.get("videos", {})
                 for key in ("large", "medium", "small"):
                     got = _download(v.get(key, {}).get("url", ""), stem, "video")
@@ -127,7 +181,7 @@ def _coverr_video(q: str, stem: str) -> str | None:
     try:
         r = requests.get(
             "https://api.coverr.co/videos",
-            params={"apiKey": config.COVERR_API_KEY, "query": q, "page_size": 8, "urls": "true"},
+            params={"apiKey": config.COVERR_API_KEY, "query": q, "page_size": _PER_PAGE, "urls": "true"},
             headers=UA, timeout=30,
         )
         if not r.ok:
@@ -135,6 +189,7 @@ def _coverr_video(q: str, stem: str) -> str | None:
             return None
         data = r.json()
         hits = data.get("hits") or data.get("videos") or []
+        _rng(stem).shuffle(hits)
         for h in hits:
             urls = h.get("urls") or {}
             for key in ("mp4_download", "mp4", "mp4_preview"):
@@ -152,15 +207,15 @@ def _wikimedia_video(q: str, stem: str) -> str | None:
             "https://commons.wikimedia.org/w/api.php",
             params={
                 "action": "query", "format": "json", "generator": "search",
-                "gsrsearch": f"{q} filetype:video", "gsrlimit": 8, "gsrnamespace": 6,
+                "gsrsearch": f"{q} filetype:video", "gsrlimit": 20, "gsrnamespace": 6,
                 "prop": "imageinfo", "iiprop": "url|size|mime",
             },
             headers=UA, timeout=30,
         )
         if not r.ok:
             return None
-        pages = r.json().get("query", {}).get("pages", {})
-        cands = sorted(pages.values(), key=lambda p: -(p.get("imageinfo", [{}])[0].get("width", 0) or 0))
+        cands = list(r.json().get("query", {}).get("pages", {}).values())
+        _rng(stem).shuffle(cands)
         for p in cands:
             info = (p.get("imageinfo") or [{}])[0]
             url = info.get("url", "")
@@ -294,14 +349,17 @@ def _gemini_image(prompt: str, stem: str) -> str | None:
 
 
 def _pollinations(prompt: str, stem: str, seed: int) -> str | None:
-    q = urllib.parse.quote(prompt[:300])
-    url = (f"https://image.pollinations.ai/prompt/{q}"
-           f"?width={config.WIDTH}&height={config.HEIGHT}&nologo=true&model=flux&enhance=true&seed={seed}")
-    for attempt in range(3):
-        got = _download(url, stem, "image")
-        if got:
-            return got
-        time.sleep(4 + attempt * 5)
+    text = _clean_query(prompt) or (prompt or "").strip() or "cinematic abstract background"
+    q = urllib.parse.quote(text[:220])
+    base = (f"https://image.pollinations.ai/prompt/{q}"
+            f"?width={config.WIDTH}&height={config.HEIGHT}&nologo=true&seed={seed}")
+    for model in ("flux", "turbo", ""):
+        url = base + (f"&model={model}" if model else "")
+        for attempt in range(2):
+            got = _download(url, stem, "image")
+            if got:
+                return got
+            time.sleep(3 + attempt * 4)
     return None
 
 
@@ -314,30 +372,43 @@ def fetch_for_beats(beats: list[dict]) -> list[dict]:
     providers = (list(_VIDEO_PROVIDERS) if config.PREFER_VIDEO else []) + list(_IMAGE_PROVIDERS)
 
     results: list[dict] = []
+    distinct: list[dict] = []   # successful, unique assets - for graceful rotation
     for i, beat in enumerate(beats):
-        q = beat["visual"]
         stem = f"beat{i:02d}"
-        print(f"[media] beat {i}: {q!r}")
+        queries = _beat_queries(beat, i)
+        print(f"[media] beat {i}: {queries}")
+
         path = None
-        for provider in providers:
-            path = provider(q, stem)
+        for q in queries:
+            for provider in providers:
+                path = provider(q, stem)
+                if path:
+                    break
             if path:
                 break
         if not path:
-            path = _pollinations(q, stem, seed=1000 + i)
+            # AI image from the beat's own sentence - always unique per beat
+            path = _pollinations(beat.get("say") or queries[0], stem, seed=1000 + i * 7)
 
-        if not path:
-            if results:
-                print("[media]   nothing found - reusing previous asset")
-                results.append({**results[-1], "beat": i})
-                continue
-            raise SystemExit(f"[media] no media for beat {i} ({q!r})")
-
-        kind = "video" if path.lower().endswith(_VIDEO_EXTS) else "image"
-        results.append({"beat": i, "path": path, "kind": kind, "visual": q})
+        if path:
+            kind = "video" if path.lower().endswith(_VIDEO_EXTS) else "image"
+            item = {"beat": i, "path": path, "kind": kind, "visual": queries[0]}
+            results.append(item)
+            distinct.append(item)
+        elif distinct:
+            src = distinct[i % len(distinct)]           # rotate, don't freeze on one clip
+            print(f"[media]   beat {i}: no new asset - reusing beat {src['beat']}'s")
+            results.append({**src, "beat": i})
+        else:
+            raise SystemExit(f"[media] no media for beat {i} ({queries!r})")
 
     nv = sum(r["kind"] == "video" for r in results)
-    print(f"[media] {nv} video / {len(results) - nv} image assets")
+    uniq = len({r["path"] for r in results})
+    print(f"[media] {nv} video / {len(results) - nv} image  "
+          f"({uniq} distinct across {len(results)} beats)")
+    if uniq < max(2, len(results) // 2):
+        print("[media] WARNING: low visual variety - the script's per-beat visual "
+              "phrases were too similar, or stock sources had few matches for them.")
     if config.PREFER_VIDEO and nv == 0 and not (
         config.PEXELS_API_KEY or config.PIXABAY_API_KEY or config.COVERR_API_KEY
     ):
