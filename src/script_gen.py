@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import re
 import textwrap
+import time
 import urllib.parse
 
 import requests
@@ -89,21 +90,23 @@ def _extract_json(text: str) -> dict:
 
 
 _GROQ_URL = "https://api.groq.com/openai/v1"
-# Fallback ids behind live discovery. Non-reasoning first; reasoning models
-# (gpt-oss, deepseek-r1, qwen3) work too but need the reasoning params below.
+# Free tier is 8000 tokens/minute TOTAL (prompt + completion), so max_tokens
+# must stay well under that or the request 413s outright.
+_GROQ_MAX_TOKENS = 4500
+# Fallback ids behind live discovery. gpt-oss first - it's what free Groq keys
+# actually carry right now.
 _GROQ_MODELS = (
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
     "llama-3.3-70b-versatile",
-    "meta-llama/llama-4-maverick-17b-128e-instruct",
     "meta-llama/llama-4-scout-17b-16e-instruct",
     "llama-3.1-8b-instant",
     "moonshotai/kimi-k2-instruct",
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
     "qwen/qwen3-32b",
-    "deepseek-r1-distill-llama-70b",
 )
 _GROQ_SKIP = ("whisper", "tts", "guard", "embed", "distil", "allam", "vision",
-              "compound", "prompt-guard", "safety")
+              "compound", "prompt-guard", "safety", "orpheus", "canopylabs",
+              "playai", "sonar", "-stt", "-asr")
 _GROQ_REASONING = ("gpt-oss", "deepseek-r1", "qwen3", "-r1", "reasoning", "thinking", "o1", "o3", "o4")
 
 
@@ -136,80 +139,92 @@ def _groq_models() -> list[str]:
     return order
 
 
+def _groq_body(model: str, prompt: str, effort: str | None) -> dict:
+    body: dict = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": (
+                "You output only minified JSON matching the schema in the user "
+                "message. No prose, no markdown, no code fences.")},
+            {"role": "user", "content": prompt},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.8,
+        "max_tokens": _GROQ_MAX_TOKENS,
+    }
+    if effort is not None:
+        body["reasoning_effort"] = effort
+        body["reasoning_format"] = "hidden"
+    return body
+
+
 def _via_groq(topic: str) -> dict | None:
     if not config.GROQ_API_KEY:
         return None
     prompt = _prompt_for(topic)
-    for model in _groq_models():
-        body: dict = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": (
-                    "You output only minified JSON matching the schema in the user "
-                    "message. No prose, no markdown, no code fences.")},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.8,
-            "max_tokens": 8000,   # room for a reasoning trace + the full JSON
-        }
-        if _groq_is_reasoning(model):
-            body["reasoning_effort"] = "low"
-            body["reasoning_format"] = "hidden"
-        try:
-            r = requests.post(
-                f"{_GROQ_URL}/chat/completions",
-                headers={"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA},
-                json=body, timeout=90,
-            )
+    headers = {"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA}
+    for model in _groq_models()[:5]:
+        # reasoning models: some want "low", some only accept "none"/"default";
+        # fall through the options on the specific 400 that complains.
+        efforts: list[str | None] = ["low", "none", None] if _groq_is_reasoning(model) else [None]
+        for effort in efforts:
+            try:
+                r = requests.post(f"{_GROQ_URL}/chat/completions", headers=headers,
+                                  json=_groq_body(model, prompt, effort), timeout=90)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[script] groq({model}) failed: {exc}")
+                break
+            if r.status_code == 400 and "reasoning_effort" in r.text:
+                continue  # try the next effort value for this model
+            if r.status_code == 429:
+                print(f"[script] groq({model}) 429 rate-limited; waiting 20s")
+                time.sleep(20)
             if not r.ok:
-                print(f"[script] groq({model}) HTTP {r.status_code} {r.text[:200]!r}")
-                continue
+                print(f"[script] groq({model}) HTTP {r.status_code} {r.text[:180]!r}")
+                break  # 404 / 413 / decommissioned -> next model
             msg = (r.json().get("choices") or [{}])[0].get("message", {}).get("content", "") or ""
             if not msg.strip():
                 print(f"[script] groq({model}) empty content")
-                continue
+                break
             out = _extract_json(msg)
             n = len(out.get("beats") or []) if isinstance(out, dict) else 0
             if n < 3:
-                print(f"[script] groq({model}) only {n} beats; trying next model")
-                continue
-            print(f"[script] groq ok via {model} ({n} beats)")
+                print(f"[script] groq({model}) only {n} beats (truncated?); next model")
+                break
+            print(f"[script] groq ok via {model} (effort={effort}, {n} beats)")
             return out
-        except Exception as exc:  # noqa: BLE001
-            print(f"[script] groq({model}) failed: {exc}")
+        time.sleep(1)
     return None
 
 
 def _via_pollinations(topic: str) -> dict | None:
-    prompt = _prompt_for(topic)
-    # "" = let the server pick its current free default. Names change often and
-    # some are now paywalled (HTTP 402), so try the default first.
-    for model in ("", "openai-fast", "mistral", "llama", "gemini", "openai"):
-        body = {
-            "messages": [{"role": "user", "content": prompt}],
-            "jsonMode": True,
-            "private": True,
-            "referrer": "yt-shorts-agent",
-        }
-        if model:
-            body["model"] = model
-        tag = model or "default"
-        try:
-            r = requests.post("https://text.pollinations.ai/", headers=UA, json=body, timeout=90)
-            if not r.ok:
-                print(f"[script] pollinations({tag}) HTTP {r.status_code} {r.text[:160]!r}")
-                continue
-            return _extract_json(r.text)
-        except Exception as exc:  # noqa: BLE001
-            print(f"[script] pollinations({tag}) failed: {exc}")
-    return None
+    # The legacy text API is now paywalled (402) for everyone; kept as one
+    # quick attempt in case that changes, but no longer worth a retry loop.
+    try:
+        r = requests.post(
+            "https://text.pollinations.ai/", headers=UA, timeout=45,
+            json={
+                "messages": [{"role": "user", "content": _prompt_for(topic)}],
+                "jsonMode": True, "private": True, "referrer": "yt-shorts-agent",
+            },
+        )
+        if not r.ok:
+            print(f"[script] pollinations HTTP {r.status_code} {r.text[:160]!r}")
+            return None
+        return _extract_json(r.text)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[script] pollinations failed: {exc}")
+        return None
 
 
 _GEMINI_HOST = "https://generativelanguage.googleapis.com"
-# "-latest" aliases track whatever Google currently ships, so they survive the
-# regular model retirements; concrete ids are fallbacks.
-_GEMINI_MODELS = ("gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-pro-latest")
+# Concrete current ids first (the "-latest" aliases have become unreliable and
+# the models endpoint hands back ids that then 404 for new keys). Update the
+# leading id when Google's error text names a newer one.
+_GEMINI_MODELS = (
+    "gemini-3.6-flash", "gemini-flash-latest", "gemini-3-flash",
+    "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.6-pro",
+)
 
 
 def _gemini_discover_model(api_version: str) -> str | None:
@@ -261,12 +276,12 @@ def _via_gemini(topic: str) -> dict | None:
         return None
     prompt = _prompt_for(topic)
     for api_version in ("v1beta", "v1"):
+        # hardcoded current ids first; discovery only appended (it returns
+        # retired ids that 404 for new keys).
         tried: list[str] = list(_GEMINI_MODELS)
         discovered = _gemini_discover_model(api_version)
-        if discovered:
-            if discovered in tried:
-                tried.remove(discovered)
-            tried.insert(0, discovered)   # a live-confirmed model goes first
+        if discovered and discovered not in tried:
+            tried.append(discovered)
         for model in tried:
             try:
                 out = _gemini_call(api_version, model, prompt)
