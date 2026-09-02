@@ -89,62 +89,78 @@ def _extract_json(text: str) -> dict:
 
 
 _GROQ_URL = "https://api.groq.com/openai/v1"
-# Non-reasoning chat models first (reasoning traces can eat the token budget and
-# truncate the JSON). Concrete ids are fallbacks behind live discovery.
+# Fallback ids behind live discovery. Non-reasoning first; reasoning models
+# (gpt-oss, deepseek-r1, qwen3) work too but need the reasoning params below.
 _GROQ_MODELS = (
     "llama-3.3-70b-versatile",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
     "llama-3.1-8b-instant",
     "moonshotai/kimi-k2-instruct",
-    "qwen/qwen3-32b",
     "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3-32b",
+    "deepseek-r1-distill-llama-70b",
 )
-_GROQ_SKIP = ("whisper", "tts", "guard", "embed", "distil", "allam", "vision")
+_GROQ_SKIP = ("whisper", "tts", "guard", "embed", "distil", "allam", "vision",
+              "compound", "prompt-guard", "safety")
+_GROQ_REASONING = ("gpt-oss", "deepseek-r1", "qwen3", "-r1", "reasoning", "thinking", "o1", "o3", "o4")
 
 
-def _groq_discover_model() -> str | None:
+def _groq_is_reasoning(model: str) -> bool:
+    m = model.lower()
+    return any(h in m for h in _GROQ_REASONING)
+
+
+def _groq_models() -> list[str]:
+    """Live model ids for this key, non-reasoning first, then the hardcoded rest."""
+    live: list[str] = []
     try:
         r = requests.get(f"{_GROQ_URL}/models",
                          headers={"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA}, timeout=30)
-        if not r.ok:
+        if r.ok:
+            ids = [m.get("id", "") for m in r.json().get("data", [])]
+            chat = [i for i in ids if i and not any(b in i.lower() for b in _GROQ_SKIP)]
+            live = [i for i in chat if not _groq_is_reasoning(i)] + [i for i in chat if _groq_is_reasoning(i)]
+            print(f"[script] groq available: {live[:8]}")
+        else:
             print(f"[script] groq list-models HTTP {r.status_code} {r.text[:160]!r}")
-            return None
-        ids = [m.get("id", "") for m in r.json().get("data", [])]
-        chat = [i for i in ids if i and not any(b in i.lower() for b in _GROQ_SKIP)]
-        pick = (next((i for i in chat if "llama-3.3-70b" in i), None)
-                or next((i for i in chat if "versatile" in i or "instant" in i), None)
-                or (chat[0] if chat else None))
-        if pick:
-            print(f"[script] groq discovered model: {pick}")
-        return pick
     except Exception as exc:  # noqa: BLE001
         print(f"[script] groq list-models failed: {exc}")
-        return None
+    seen: set[str] = set()
+    order: list[str] = []
+    for m in live + list(_GROQ_MODELS):
+        if m and m not in seen:
+            seen.add(m)
+            order.append(m)
+    return order
 
 
 def _via_groq(topic: str) -> dict | None:
     if not config.GROQ_API_KEY:
         return None
     prompt = _prompt_for(topic)
-    tried: list[str] = list(_GROQ_MODELS)
-    discovered = _groq_discover_model()
-    if discovered and discovered not in tried:
-        tried.insert(0, discovered)
-    for model in tried:
+    for model in _groq_models():
+        body: dict = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": (
+                    "You output only minified JSON matching the schema in the user "
+                    "message. No prose, no markdown, no code fences.")},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.8,
+            "max_tokens": 8000,   # room for a reasoning trace + the full JSON
+        }
+        if _groq_is_reasoning(model):
+            body["reasoning_effort"] = "low"
+            body["reasoning_format"] = "hidden"
         try:
             r = requests.post(
                 f"{_GROQ_URL}/chat/completions",
                 headers={"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA},
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": "You output only minified JSON. No prose, no code fences."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "response_format": {"type": "json_object"},
-                    "temperature": 0.9,
-                    "max_tokens": 2000,
-                },
-                timeout=60,
+                json=body, timeout=90,
             )
             if not r.ok:
                 print(f"[script] groq({model}) HTTP {r.status_code} {r.text[:200]!r}")
@@ -154,7 +170,11 @@ def _via_groq(topic: str) -> dict | None:
                 print(f"[script] groq({model}) empty content")
                 continue
             out = _extract_json(msg)
-            print(f"[script] groq ok via {model}")
+            n = len(out.get("beats") or []) if isinstance(out, dict) else 0
+            if n < 3:
+                print(f"[script] groq({model}) only {n} beats; trying next model")
+                continue
+            print(f"[script] groq ok via {model} ({n} beats)")
             return out
         except Exception as exc:  # noqa: BLE001
             print(f"[script] groq({model}) failed: {exc}")
@@ -243,8 +263,10 @@ def _via_gemini(topic: str) -> dict | None:
     for api_version in ("v1beta", "v1"):
         tried: list[str] = list(_GEMINI_MODELS)
         discovered = _gemini_discover_model(api_version)
-        if discovered and discovered not in tried:
-            tried.insert(0, discovered)
+        if discovered:
+            if discovered in tried:
+                tried.remove(discovered)
+            tried.insert(0, discovered)   # a live-confirmed model goes first
         for model in tried:
             try:
                 out = _gemini_call(api_version, model, prompt)
