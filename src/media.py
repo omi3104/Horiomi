@@ -1,15 +1,17 @@
 """Fetch one on-topic visual per script beat, tuned for a HISTORY channel.
 
-Stock *video* almost never has footage of a specific historical event, so the
-priority is: real historical images (the topic's own Wikipedia pictures,
-Wikimedia paintings/engravings/maps, Met Museum open access), then an AI image
-generated FROM the beat's sentence (always on-topic), then generic stock, with
-stock video only as an optional supplement.
+Per beat:
+  * "scene" beats (an action described)  -> AI image generated FROM the beat's
+    own sentence + keyword + era style. Always on-topic. This is ~80% of beats.
+  * "anchor" beats (visual says portrait / map / painting / coin / monument,
+    or the keyword is a person's name) -> try a REAL image first (Wikimedia
+    art, Met Museum, the topic's own Wikipedia pictures), fall back to AI.
+  * generic STOCK (Pexels / Pixabay / Openverse) is capped at ~20% of beats
+    and only used when both AI and real fail.
 
-Every non-generated candidate is passed through a keyword-overlap relevance
-gate so a beat about "siege of Baghdad" cannot land on a stock clip of a
-motorway. Provider result lists are shuffled per beat and `_used_urls` blocks
-repeats, so distinct beats get distinct pictures.
+Real / stock candidates pass a keyword-overlap relevance gate so a "siege of
+Baghdad" beat cannot land on a stock motorway clip. Result lists are shuffled
+per beat and `_used_urls` blocks repeats.
 """
 from __future__ import annotations
 
@@ -315,10 +317,20 @@ _GEMINI_IMAGE_MODELS = (
 
 
 def _ai_prompt(beat: dict, topic: str) -> str:
-    say = (beat.get("say") or beat.get("visual") or topic).strip()
-    return (f"{say}. {_era_style(topic)}. Dramatic cinematic history illustration, "
-            f"detailed, atmospheric light, vertical composition, "
-            f"no text, no captions, no watermark, no modern objects")
+    vis = (beat.get("visual") or "").strip()
+    say = (beat.get("say") or "").strip()
+    kw = (beat.get("keyword") or "").strip()
+    subject = vis or say or topic
+    ctx = f" Context: {topic}"
+    if kw and kw.lower() not in subject.lower():
+        ctx += f", {kw}"
+    if say and say.lower() != subject.lower():
+        ctx += f". Scene: {say}"
+    return (f"{subject}.{ctx}. {_era_style(topic)}. "
+            f"Dramatic cinematic history illustration, painterly, highly detailed, "
+            f"period-accurate clothing and architecture, atmospheric light, "
+            f"vertical 9:16 composition, no text, no captions, no watermark, "
+            f"no modern objects, no photo border")
 
 
 def _gemini_image(prompt: str, stem: str) -> str | None:
@@ -462,83 +474,114 @@ def _pixabay_video(q: str, stem: str) -> str | None:
 
 
 # ---------------------------------------------------------------------
-_HISTORY_PROVIDERS = (_wikimedia_art, _met_museum, _wikimedia_map,
-                      _wikimedia_photo, _openverse)
-_STOCK_PROVIDERS = (_pexels_photo, _pixabay_photo)
+_REAL_PROVIDERS = (_wikimedia_art, _met_museum, _wikimedia_map, _wikimedia_photo)
+_STOCK_PROVIDERS = (_pexels_photo, _pixabay_photo, _openverse)
 _VIDEO_PROVIDERS = (_pexels_video, _pixabay_video, _wikimedia_video)
+
+# beats that really want a specific real artifact rather than a painted scene
+_ANCHOR_HINT = re.compile(
+    r"\bportrait\b|\bmap\b|\bpainting\b|\bcoin(age)?\b|manuscript|fresco|"
+    r"engraving|\bcharter\b|\btreaty\b|photograph|\bmemorial\b|\bmonument\b|"
+    r"\bruins\b|\bstatue\b|\brelief\b|\btomb\b|mosaic|\bbust\b|tapestry", re.I)
+
+
+def _needs_real(beat: dict) -> bool:
+    vis = (beat.get("visual") or "")
+    if _ANCHOR_HINT.search(vis):
+        return True
+    kw = (beat.get("keyword") or "").strip()
+    # a person's name (>=2 capitalised words) -> use a real portrait if one exists
+    caps = [w for w in kw.split() if w[:1].isupper()]
+    return len(caps) >= 2
+
+
+def _ai_image(beat: dict, topic: str, stem: str, seed: int) -> str | None:
+    prompt = _ai_prompt(beat, topic)
+    return _gemini_image(prompt, stem) or _pollinations(prompt, stem, seed)
 
 
 def fetch_for_beats(beats: list[dict], topic: str = "") -> list[dict]:
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     topic_pool = _topic_wikipedia_images(topic) if topic else []
     tp_i = 0
+    stock_cap = max(1, round(len(beats) * 0.2))   # ~20% of beats may use stock
+    stock_used = 0
+    real = list(_REAL_PROVIDERS)
+    stock = list(_STOCK_PROVIDERS) + (list(_VIDEO_PROVIDERS) if config.PREFER_VIDEO else [])
 
-    history = list(_HISTORY_PROVIDERS)
-    # stock photo is a weak last resort for a history channel - an AI painting
-    # of the actual scene beats a random Pexels stock photo. Video only if asked.
-    last_resort = list(_STOCK_PROVIDERS) + (list(_VIDEO_PROVIDERS) if config.PREFER_VIDEO else [])
+    def _try_real(beat, queries, stem):
+        nonlocal tp_i
+        for q in queries:
+            for provider in real:
+                got = provider(q, stem)
+                if got:
+                    print(f"[media]   -> {provider.__name__} ({q!r})")
+                    return got
+        while tp_i < len(topic_pool):
+            u = topic_pool[tp_i]; tp_i += 1
+            got = _download(u, stem, "image")
+            if got:
+                print("[media]   -> wikipedia_topic_image")
+                return got
+        return None
+
+    def _try_stock(queries, stem):
+        nonlocal stock_used
+        if stock_used >= stock_cap:
+            return None
+        for q in queries:
+            for provider in stock:
+                got = provider(q, stem)
+                if got:
+                    stock_used += 1
+                    print(f"[media]   -> {provider.__name__} (stock {stock_used}/{stock_cap}, {q!r})")
+                    return got
+        return None
 
     results: list[dict] = []
     distinct: list[dict] = []
+    src_mix: dict[str, int] = {"ai": 0, "real": 0, "stock": 0}
     for i, beat in enumerate(beats):
         stem = f"beat{i:02d}"
         queries = _beat_queries(beat, topic)
-        print(f"[media] beat {i}: {queries[:3]}")
+        anchor = _needs_real(beat)
+        print(f"[media] beat {i} ({'anchor' if anchor else 'scene'}): {queries[:2]}")
 
-        path = None
-        for q in queries:
-            for provider in history:
-                path = provider(q, stem)
+        path = kindtag = None
+        seq = (["real", "ai", "stock"] if anchor else ["ai", "real", "stock"])
+        for step in seq:
+            if step == "ai":
+                path = _ai_image(beat, topic, stem, seed=1000 + i * 7)
                 if path:
-                    print(f"[media]   -> {provider.__name__}  ({q!r})")
-                    break
+                    print("[media]   -> AI image"); kindtag = "ai"
+            elif step == "real":
+                path = _try_real(beat, queries, stem)
+                if path:
+                    kindtag = "real"
+            else:
+                path = _try_stock(queries, stem)
+                if path:
+                    kindtag = "stock"
             if path:
                 break
 
-        # the subject's own Wikipedia-article pictures
-        if not path and tp_i < len(topic_pool):
-            for u in topic_pool[tp_i:]:
-                tp_i += 1
-                got = _download(u, stem, "image")
-                if got:
-                    path = got
-                    print(f"[media]   -> wikipedia_topic_image")
-                    break
-
-        # an AI image built from this beat's own sentence - always on-topic
-        if not path:
-            prompt = _ai_prompt(beat, topic)
-            path = _gemini_image(prompt, stem) or _pollinations(prompt, stem, seed=1000 + i * 7)
-            if path:
-                print(f"[media]   -> AI image")
-
-        # only now fall back to generic stock
-        if not path:
-            for q in queries:
-                for provider in last_resort:
-                    path = provider(q, stem)
-                    if path:
-                        print(f"[media]   -> {provider.__name__} (stock fallback, {q!r})")
-                        break
-                if path:
-                    break
-
         if path:
+            src_mix[kindtag] += 1
             kind = "video" if path.lower().endswith(_VIDEO_EXTS) else "image"
             item = {"beat": i, "path": path, "kind": kind, "visual": queries[0]}
             results.append(item)
             distinct.append(item)
         elif distinct:
-            src = distinct[i % len(distinct)]
-            print(f"[media]   beat {i}: nothing new - reusing beat {src['beat']}'s")
-            results.append({**src, "beat": i})
+            s = distinct[i % len(distinct)]
+            print(f"[media]   beat {i}: nothing new - reusing beat {s['beat']}'s")
+            results.append({**s, "beat": i})
         else:
             raise SystemExit(f"[media] no media for beat {i} ({queries!r})")
 
-    nv = sum(r["kind"] == "video" for r in results)
     uniq = len({r["path"] for r in results})
-    print(f"[media] {nv} video / {len(results) - nv} image  "
-          f"({uniq} distinct across {len(results)} beats)")
-    if uniq < max(2, len(results) * 2 // 3):
+    tot = len(results)
+    print(f"[media] {tot} beats: {src_mix['ai']} AI / {src_mix['real']} real / "
+          f"{src_mix['stock']} stock  ({uniq} distinct)")
+    if uniq < max(2, tot * 2 // 3):
         print("[media] WARNING: low visual variety for this topic")
     return results
