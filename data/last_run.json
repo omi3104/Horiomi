@@ -1,84 +1,137 @@
 {
-  "date": "2026-09-02",
-  "generated_at": "2026-09-02T18:42:24.080139+00:00",
-  "topic": "Alexander the Great",
+  "date": "2026-09-03",
+  "generated_at": "2026-09-03T07:01:47.810420+00:00",
+  "topic": "Battle of Sedan",
   "topic_source": "wikipedia-top",
-  "topic_url": "https://en.wikipedia.org/wiki/Alexander_the_Great",
+  "topic_url": "https://en.wikipedia.org/wiki/Battle_of_Sedan",
   "seo_terms": [
-    "alexander the great",
-    "alexander the great speech",
-    "alexander the great movie",
-    "alexander the great documentary",
-    "alexander the great iron maiden",
-    "alexander the great edit"
+    "battle of sedan",
+    "battle of sedan 1870",
+    "battle of sedan 1940",
+    "battle of sedan ww2",
+    "battle of sedan map",
+    "battle of sedan kings and generals"
   ],
-  "title": "Alexander the Great's hidden Persian alliance that reshaped empire",
-  "hook": "You think Alexander only conquered by sword, but a secret pact with Persian satraps turned his army into a hybrid force.",
-  "description": "alexander the great documentary reveals a secret Persian alliance that changed the course of his empire.\n\nSubscribe for more untold twists in history.\n#AlexanderTheGreat #History #AncientWorld #historyfacts #shorts",
+  "title": "Sedan 1870: Napoleon III's Surrender",
+  "hook": "The French Emperor didn't lose at Sedan; he was trapped by his own arrogance.",
+  "description": "Discover how the Battle of Sedan in 1870 ended the Second French Empire and changed Europe\n\nSubscribe for more hidden history twists.\n#history #sedan #napoleoniii #ww1origins #historyfacts #shorts",
   "tags": [
-    "Alexander the Great",
-    "Persian alliance",
-    "Hellenistic period",
-    "ancient warfare",
-    "history shorts",
-    "ancient Persia",
-    "Macedonian empire",
-    "alexander the great speech",
-    "alexander the great movie",
-    "alexander the great documentary",
-    "alexander the great iron maiden",
-    "alexander the great edit",
     "history",
+    "battle of sedan 1870",
+    "napoleon iii",
+    "french prussian war",
+    "german unification",
+    "military history",
+    "sedan 1870 map",
+    "historical geopolitics",
+    "battle of sedan",
+    "battle of sedan 1940",
+    "battle of sedan ww2",
+    "battle of sedan map",
+    "battle of sedan kings and generals",
     "history facts",
     "historical facts"
   ],
   "hashtags": [
-    "#AlexanderTheGreat",
-    "#History",
-    "#AncientWorld",
+    "#history",
+    "#sedan",
+    "#napoleoniii",
+    "#ww1origins",
     "#historyfacts",
     "#shorts"
   ],
   "beats": [
     {
-      "say": "You think Alexander only conquered by sword, but a secret pact with Persian satraps turned his army into a hybrid force.",
-      "visual": "Persian satrap palace courtyard"
+      "say": "September 1st, 1870, turns the world upside down.",
+      "visual": "map of Sedan France 1870 siege lines",
+      "keyword": "Sept 1, 1870"
     },
     {
-      "say": "In 334 BC he crossed the Hellespont, not just with Macedonians, but with elite Persian cavalry from Cappadocia, their ornate lamellar armor glittering beside the phalanx.",
-      "visual": "Cappadocian Persian cavalry armor"
+      "say": "Napoleon III leads the Army of Châlons into a trap.",
+      "visual": "Napoleon III in uniform portrait",
+      "keyword": "Napoleon III"
     },
     {
-      "say": "At the Battle of Issus, the Persian horsemen flanked the Greeks, confusing the enemy and buying Alexander time to strike.",
-      "visual": "Issus battlefield terrain map"
+      "say": "He believes his army is invincible against Prussia.",
+      "visual": "French imperial troops marching",
+      "keyword": "Army of Châlons"
     },
     {
-      "say": "He rewarded the allies with land grants in Syria, forging a network of local governors who supplied food and intelligence.",
-      "visual": "Syrian hilltop settlement ruins"
+      "say": "General von Moltke outmaneuvers him completely.",
+      "visual": "Helmuth von Moltke portrait",
+      "keyword": "von Moltke"
     },
     {
-      "say": "This cooperation let him march east without exhausting his own supplies, speeding his advance to the Indus by 326 BC.",
-      "visual": "Indus River delta ancient port"
+      "say": "Prussian artillery surrounds the town of Sedan.",
+      "visual": "Krupp railway gun firing",
+      "keyword": "Krupp Guns"
     },
     {
-      "say": "When he later dismissed the Persian troops, many defected to his successor Seleucus, seeding the Hellenistic East.",
-      "visual": "Seleucid empire map 300 BC"
+      "say": "French soldiers are pinned against the Meuse River.",
+      "visual": "Meuse River near Sedan",
+      "keyword": "Meuse River"
     },
     {
-      "say": "The hidden Persian alliance explains why his empire lasted centuries beyond his death, reshaping cultures from Egypt to Bactria.",
-      "visual": "Bactrian coinage with Alexander portrait"
+      "say": "Austrian prisoners reveal the truth to the troops.",
+      "visual": "Austrian soldiers in French uniform",
+      "keyword": "Austrian POWs"
+    },
+    {
+      "say": "Morale collapses as the reality sets in.",
+      "visual": "defeated French soldiers sitting",
+      "keyword": "Collapse"
+    },
+    {
+      "say": "Napoleon III surrenders unconditionally on the 2nd.",
+      "visual": "Napoleon III surrendering to Moltke",
+      "keyword": "Surrender"
+    },
+    {
+      "say": "The Second French Empire dies in a single day.",
+      "visual": "Ruins of Sedan after battle",
+      "keyword": "Empire Ends"
+    },
+    {
+      "say": "Paris declares a republic to save France.",
+      "visual": "Paris Commune declaration 1870",
+      "keyword": "Third Republic"
+    },
+    {
+      "say": "Germany unifies in the Hall of Mirrors.",
+      "visual": "Hall of Mirrors Versailles 1871",
+      "keyword": "Unification"
+    },
+    {
+      "say": "Sedan became a national trauma for France.",
+      "visual": "Sedan memorial monument",
+      "keyword": "National Trauma"
+    },
+    {
+      "say": "One battle reshaped the entire European map.",
+      "visual": "map of Europe 1871 borders",
+      "keyword": "New Europe"
     }
   ],
-  "word_count": 171,
-  "duration_seconds": 65.1,
+  "timeline": [
+    {
+      "year": 1870,
+      "label": "Battle of Sedan"
+    },
+    {
+      "year": 1871,
+      "label": "German Unification"
+    }
+  ],
+  "word_count": 126,
+  "duration_seconds": 65.2,
   "target_window": [
     50,
     80
   ],
   "privacy": "private",
   "dry_run": false,
-  "video_id": "r9nfXEt4jjE",
-  "youtube_url": "https://youtu.be/r9nfXEt4jjE",
-  "studio_url": "https://studio.youtube.com/video/r9nfXEt4jjE/edit",
-  "uploaded_at": "2026-09-02T18:42:24.079581+00:00"
+  "video_id": "B5zlBt-qq2c",
+  "youtube_url": "https://youtu.be/B5zlBt-qq2c",
+  "studio_url": "https://studio.youtube.com/video/B5zlBt-qq2c/edit",
+  "uploaded_at": "2026-09-03T07:01:47.809825+00:00"
 }
