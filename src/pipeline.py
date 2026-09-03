@@ -41,7 +41,8 @@ def run() -> int:
     script["narration_spoken"] = spoken
     ass = captions.build(audio, spoken)
     video_path = video.render(media_items, script["beats"], audio, ass,
-                              script.get("timeline"))
+                              script.get("timeline"),
+                              hook=script.get("hook", ""), cta=script.get("cta", ""))
     script["duration_seconds"] = round(util.probe_duration(video_path), 1)
 
     (config.OUT / f"script_{date}.json").write_text(

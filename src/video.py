@@ -37,13 +37,19 @@ def _target_total(speech: float) -> float:
     return round(total, 3)
 
 
-def _beat_durations(beats: list[dict], total: float) -> list[float]:
-    weights = [max(1, len(b["say"].split())) for b in beats]
-    wsum = sum(weights)
-    raw = [total * w / wsum for w in weights]
-    out = [max(1.6, d) for d in raw]
-    scale = total / sum(out)
-    return [round(d * scale, 3) for d in out]
+def _beat_durations(beats: list[dict], total: float, speech: float,
+                    hook: str = "", cta: str = "") -> list[float]:
+    """Each image runs for the time ITS text is actually spoken. The hook (no
+    image of its own) folds into image 1, the cta and the trailing hold into the
+    last image - so images 2..N-1 start exactly on their narration, no drift."""
+    units = [hook] + [b.get("say", "") for b in beats] + [cta]
+    w = [max(1, len(u.split())) for u in units]
+    wsum = sum(w) or 1
+    per = [speech * x / wsum for x in w]          # real spoken seconds per unit
+    bd = per[1:-1] or [speech]
+    bd[0] += per[0]                                # hook -> first image
+    bd[-1] += per[-1] + max(0.0, total - speech)   # cta + tail hold -> last image
+    return [round(max(1.2, d), 3) for d in bd]
 
 
 def _make_segment(idx: int, media: dict, dur: float) -> str:
@@ -132,7 +138,7 @@ def _ass_arg(path: str) -> str:
 
 
 def render(media_items: list[dict], beats: list[dict], audio_path: str, ass_path: str,
-           timeline: list[dict] | None = None) -> str:
+           timeline: list[dict] | None = None, hook: str = "", cta: str = "") -> str:
     config.ensure_dirs()
     speech = util.probe_duration(audio_path)
     total = _target_total(speech)
@@ -156,7 +162,8 @@ def render(media_items: list[dict], beats: list[dict], audio_path: str, ass_path
         reserve = 0.0
 
     beat_total = round(total - reserve, 3)
-    durs = _beat_durations(beats, beat_total)
+    beat_speech = max(1.0, speech - reserve)
+    durs = _beat_durations(beats, beat_total, beat_speech, hook, cta)
 
     plan: list[tuple[dict, float]] = []
     if intro:
