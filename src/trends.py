@@ -39,6 +39,19 @@ _ALLOW = re.compile(
     r"crusades?|crusaders?|templars?|medieval|mediaeval|antiquity|dark ages|middle ages|"
     r"mesopotamia|babylon\w*|assyria\w*|sumer\w*|akkad\w*|hittite|phoenician|carthag\w*|"
     r"ancient egypt|ancient greece|ancient china|ancient india|"
+    # --- Islamic world + subcontinent (the channel's 60%) ------------------
+    r"islamic|rashidun|umayyads?|abbasids?|fatimids?|ayyubids?|mamluks?|"
+    r"seljuks?|ghaznavids?|ghurids?|safavids?|timurids?|emirates?|imamate|"
+    r"al-andalus|andalusi|nasrid|almohad|almoravid|cordoba|granada|"
+    r"delhi sultanate|bahmani|deccan|vijayanagara|marathas?|rajputs?|"
+    r"sikh empire|maurya\w*|gupta empire|chola\w*|mysore|golconda|hyderabad|"
+    r"british raj|east india company|company rule|sepoy|partition of (india|british india)|"
+    r"prophet muhammad|abu bakr|\bumar\b|uthman|ali ibn abi talib|khalid ibn|"
+    r"salah al-din|nur al-din|baibars|mehmed (ii|the conqueror)|suleiman the magnificent|"
+    r"\bbabur\b|humayun|\bakbar\b|jahangir|shah jahan|aurangzeb|tipu sultan|"
+    r"nadir shah|ahmad shah durrani|mahmud of ghazni|muhammad of ghor|"
+    r"razia sultana|sher shah suri|prithviraj|tariq ibn ziyad|"
+    r"battle of (yarmouk|qadisiyya|nahavand|ain jalut|talas|panipat|plassey|buxar)|"
     r"battle of|siege of|sack of|fall of|rise of|war of|wars of|treaty of|"
     r"reconquista|the reconquest|partition of|conquest of|"
     r"kings? of|queens? of|emperors? of|tsar of|monarchy of|"
@@ -84,7 +97,11 @@ _CAT_STRONG = re.compile(
     r"century bc|\dth century bc|bc births|bc deaths|\bad \d|"
     r"roman empire|roman republic|ancient rome|byzantine|ottoman|mughal|mongol|"
     r"\bmonarchs\b|\bemperors\b|\bkings\b|\bqueens\b|\btsars\b|pharaohs|caliph|"
-    r"kingdoms|principalit|city-states|nobility|aristocrats",
+    r"kingdoms|principalit|city-states|nobility|aristocrats|"
+    r"sultanate|mamluk|abbasid|umayyad|fatimid|ayyubid|seljuk|al-andalus|"
+    r"delhi sultanate|maratha|rajput|sikh empire|british raj|east india company|"
+    r"islamic history|history of pakistan|history of india|history of iran|"
+    r"medieval islam|muslim history",
     re.I,
 )
 _CAT_MODERN = re.compile(
@@ -98,67 +115,153 @@ _CAT_MODERN = re.compile(
     re.I,
 )
 
-_ERA_SEEDS = [
-    "roman empire", "ancient rome", "ancient greece", "byzantine empire",
-    "ancient persia", "achaemenid empire", "ottoman empire", "mongol empire",
-    "norman conquest", "viking history", "islamic golden age", "the crusades",
-    "ancient egypt", "medieval england", "british empire", "napoleonic wars",
-    "cold war history", "world war 1 history", "carthage rome war",
-]
+# =====================================================================
+#  Region mix - the channel runs ~60% Islamic world + subcontinent,
+#  ~20% Europe/America, ~20% other history. Buckets are picked by these
+#  weights; a bucket with no fresh candidate that day falls to its bank.
+# =====================================================================
+_WEIGHTS = [("islamic", 0.60), ("west", 0.20), ("other", 0.20)]
 
-# --- keyless curated bank (dramatic, lesser-known angles) ------------------
-_FALLBACK_BANK = [
-    "the Byzantine weapon that terrified enemies for 700 years",
-    "why Rome really pulled its legions out of Britain",
-    "the Persian royal road that let news cross an empire in a week",
-    "the forgotten Norman kingdom that ruled Sicily",
-    "how a sandstorm may have swallowed a whole Persian army",
-    "the Roman emperor who was sold the throne at auction",
-    "why the Library of Alexandria's fall is mostly a myth",
-    "the Greek fire recipe the Byzantines took to their grave",
-    "the Mongol postal system that outran every medieval kingdom",
-    "how Constantinople's walls held for a thousand years",
-    "the Roman concrete formula that still baffles engineers",
-    "why Sparta almost never built city walls",
-    "the Viking who became a Roman emperor's bodyguard",
-    "the treaty that split the unknown world between Spain and Portugal",
-    "how the Black Death quietly ended serfdom in Western Europe",
-    "the Egyptian queen who ruled as pharaoh and was erased from records",
-    "why Hannibal's elephants barely survived the Alps",
-    "the Chinese admiral whose fleet dwarfed Columbus by decades",
-    "the Roman road network that still shapes European motorways",
-    "how a single bad harvest helped topple the Western Roman Empire",
-    "the Ottoman siege gun so big it took 60 oxen to move",
-    "the Anglo-Saxon king who paid the Vikings to leave, again and again",
-    "why the Battle of Tours mattered far less than legend says",
-    "the Persian king who dug a canal Alexander would later use",
-    "how Venice ran a maritime empire from a swamp",
-    "the Roman fort in Scotland the empire abandoned twice",
-    "the lost Roman legion that vanished in Britain",
-    "why Genghis Khan's tomb has never been found",
-    "the medieval Baghdad house of wisdom that saved Greek science",
-    "how the printing press broke the Church's monopoly on knowledge",
-    "the Spartan mirage: how much of the legend was propaganda",
-    "the Byzantine princess who wrote the first real history by a woman",
-    "why the Great Wall failed to stop the Mongols",
-    "the Roman emperor who never lost a battle and is forgotten",
-    "how salt built and broke ancient trade empires",
-    "the Norman survey that recorded all of England in one year",
-    "the Carthaginian navy that ruled the Mediterranean before Rome",
-    "why Alexander's empire shattered within a generation",
-    "the Islamic scholars who calculated Earth's size in the 9th century",
-    "the medieval Icelandic parliament older than England's",
-    "how the stirrup may have created the mounted knight",
-    "the Roman grain fleet that fed a million people",
-    "the Persian immortals: elite unit or clever exaggeration",
-    "why Julius Caesar's calendar still runs our year",
-    "the Viking trade route from Sweden to Baghdad",
-    "the fall of Constantinople and the cannon that ended an age",
-    "how Rome recycled its own monuments into churches",
-    "the Mongol siege tactic that emptied entire cities without a fight",
-    "the Anglo-Saxon treasure hoard found under a farmer's field",
-    "why the Roman Republic never recovered from its own generals",
-]
+_R_ISLAMIC = re.compile(
+    r"islam|muslim|\bquran\b|caliph|rashidun|umayyad|abbasid|fatimid|ayyubid|"
+    r"mamluk|seljuk|ghaznavid|ghurid|safavid|timurid|ottoman|sultan|emirate|"
+    r"al-andalus|andalus|nasrid|almohad|almoravid|cordoba|granada|moor|"
+    r"mughal|delhi sultanate|bahmani|deccan|vijayanagara|maratha|rajput|"
+    r"sikh empire|maurya|gupta empire|chola|mysore|hyderabad|golconda|"
+    r"british raj|east india company|sepoy|partition of (india|british india)|"
+    r"\bpakistan\b|hindustan|\bsindh\b|\bpunjab\b|bengal|afghan|"
+    r"persia|persian|\biran\b|arab|arabia|mecca|medina|baghdad|damascus|cairo|"
+    r"muhammad|abu bakr|\bumar\b|uthman|\bali ibn|khalid ibn|saladin|salah al-din|"
+    r"nur al-din|baibars|suleiman|mehmed|\bakbar\b|\bbabur\b|humayun|jahangir|"
+    r"shah jahan|aurangzeb|tipu|nadir shah|ahmad shah|mahmud of ghazni|"
+    r"muhammad of ghor|razia|sher shah|tariq ibn ziyad|"
+    r"crusade|constantinople|\b1453\b|panipat|plassey|buxar|"
+    r"yarmouk|qadisiyya|nahavand|ain jalut|siege of vienna|talas",
+    re.I,
+)
+_R_WEST = re.compile(
+    r"\brome\b|roman|greek|greece|byzantin|athen|sparta|\bgaul\b|celt|hellen|"
+    r"norman|saxon|viking|norse|\bfrank|charlemagne|carolingian|merovingian|"
+    r"britain|british|england|english|scotland|ireland|\bwales\b|france|french|"
+    r"spain|spanish|portugal|portuguese|german|prussia|austria|habsburg|"
+    r"italy|italian|venice|florence|genoa|papal|\bpope\b|holy roman|"
+    r"russia|russian|\btsar|romanov|poland|polish|sweden|swedish|dutch|"
+    r"united states|america|american revolution|confedera|\bunion\b|"
+    r"napoleon|waterloo|bismarck|world war|western front|cold war|nazi|"
+    r"churchill|lincoln|washington|jefferson|tudor|stuart|plantagenet",
+    re.I,
+)
+
+
+def _region(topic: str) -> str:
+    t = (topic or "").lower()
+    if _R_ISLAMIC.search(t):
+        return "islamic"
+    if _R_WEST.search(t):
+        return "west"
+    return "other"
+
+
+def _weighted_order(weights: list[tuple[str, float]]) -> list[str]:
+    """Random ordering of the region names, biased by weight (islamic first ~60%)."""
+    items = list(weights)
+    order: list[str] = []
+    while items:
+        total = sum(w for _, w in items)
+        pick = random.uniform(0, total)
+        acc = 0.0
+        for idx, (name, w) in enumerate(items):
+            acc += w
+            if pick <= acc:
+                order.append(name)
+                items.pop(idx)
+                break
+        else:
+            order.append(items.pop()[0])
+    return order
+
+
+_SEEDS = {
+    "islamic": [
+        "ottoman empire history", "mughal empire", "islamic golden age",
+        "abbasid caliphate", "rise of islam", "salahuddin ayyubi", "al andalus history",
+        "delhi sultanate", "tipu sultan", "aurangzeb", "battle of badr", "crusades history",
+        "fall of constantinople 1453", "nadir shah", "maratha empire", "sikh empire",
+        "partition of india", "mahmud of ghazni", "battle of plassey", "mamluk sultanate",
+        "spread of islam in india", "ahmad shah abdali panipat",
+    ],
+    "west": [
+        "roman empire history", "ancient greece", "byzantine empire", "viking history",
+        "norman conquest 1066", "napoleonic wars", "british empire", "world war 1 history",
+    ],
+    "other": [
+        "ancient egypt", "mongol empire", "ancient persia", "han dynasty china",
+        "samurai history", "aztec empire", "kingdom of mali", "carthage vs rome",
+    ],
+}
+
+# Curated famous-topic banks (used only when the day yields no fresh candidate
+# for a bucket). Dramatic, well-known, high search volume.
+_BANKS = {
+    "islamic": [
+        "how Salahuddin retook Jerusalem in 1187",
+        "the night the Abbasid Caliphate fell to the Mongols in 1258",
+        "why the fall of Constantinople in 1453 ended the Middle Ages",
+        "the untold story of the Battle of Badr",
+        "how Tariq ibn Ziyad conquered Spain in 711",
+        "the House of Wisdom that made Baghdad the center of science",
+        "how Muhammad bin Qasim brought Islam to Sindh at seventeen",
+        "why the Third Battle of Panipat broke the Maratha Empire",
+        "how Babur won India at Panipat with 12,000 men",
+        "the six months Aurangzeb spent chasing one Maratha fort",
+        "how Tipu Sultan's rockets shocked the British army",
+        "the Battle of Plassey: how a bribe handed Bengal to a company",
+        "how Nadir Shah emptied Delhi's treasury in 57 days",
+        "why Akbar invented his own religion",
+        "the Ottoman siege gun so huge it took 60 oxen to move",
+        "how the Janissaries went from elite slaves to kingmakers",
+        "the lost Muslim kingdom of Sicily",
+        "how Al-Andalus kept flushing toilets while Europe forgot them",
+        "why the Reconquista took almost 800 years",
+        "the Mamluks: slave soldiers who stopped the Mongols at Ain Jalut",
+        "how Mansa Musa's hajj crashed the economy of Egypt",
+        "the Mughal throne made of a tonne of gold and jewels",
+        "why Sher Shah Suri's five-year reign reshaped India",
+        "how the East India Company went from traders to rulers",
+        "the real reason the Ottoman Empire was called 'the sick man of Europe'",
+        "how Razia Sultana became the only woman to rule Delhi",
+        "the Siege of Vienna that stopped the Ottomans at Europe's door",
+        "how paper reached Europe through the Islamic world",
+        "why Timur built towers out of skulls",
+        "the Battle of Talas that gave the Muslim world papermaking",
+    ],
+    "west": [
+        "why Rome really pulled its legions out of Britain",
+        "the Greek fire the Byzantines took to their grave",
+        "how Constantinople's walls held for a thousand years",
+        "why Hannibal's elephants barely survived the Alps",
+        "the lost Roman legion that vanished in Britain",
+        "how the Black Death quietly ended serfdom in Europe",
+        "the Norman survey that recorded all of England in a year",
+        "why Sparta almost never built city walls",
+        "how one bad harvest helped topple the Western Roman Empire",
+        "the Roman concrete formula that still baffles engineers",
+        "why Julius Caesar's calendar still runs our year",
+        "the Viking who became the Byzantine emperor's bodyguard",
+    ],
+    "other": [
+        "why Genghis Khan's tomb has never been found",
+        "the Chinese admiral whose fleet dwarfed Columbus by decades",
+        "the Egyptian queen who ruled as pharaoh and was erased",
+        "how the Mongol postal system outran every medieval kingdom",
+        "why the Great Wall failed to stop the Mongols",
+        "how salt built and broke ancient trade empires",
+        "the Persian royal road that crossed an empire in a week",
+        "how a sandstorm may have swallowed a whole Persian army",
+        "why Alexander's empire shattered within a generation",
+        "the Aztec capital that was bigger than any city in Europe",
+    ],
+}
 
 
 def _clean(text: str) -> str:
@@ -295,14 +398,17 @@ def youtube_suggest(seed: str, limit: int = 10) -> list[str]:
 
 
 def _suggest_candidates() -> list[dict]:
-    seeds = random.sample(_ERA_SEEDS, k=min(6, len(_ERA_SEEDS)))
+    # ~60/20/20 seed sampling so demand data itself skews to the target mix
+    seeds = (random.sample(_SEEDS["islamic"], k=min(5, len(_SEEDS["islamic"])))
+             + random.sample(_SEEDS["west"], k=2)
+             + random.sample(_SEEDS["other"], k=2))
     out: list[dict] = []
     for seed in seeds:
         for phrase in youtube_suggest(seed, limit=8):
             p = _clean(phrase)
             if 12 <= len(p) <= 90 and not _REJECT.search(p) and _ALLOW.search(p):
                 out.append({"topic": p, "score": 300, "source": "youtube-suggest", "url": ""})
-    print(f"[trends] youtube-suggest: {len(out)} phrases from {len(seeds)} era seeds")
+    print(f"[trends] youtube-suggest: {len(out)} phrases from {len(seeds)} seeds")
     return out
 
 
@@ -336,22 +442,34 @@ def pick_topic() -> dict:
     pool += _suggest_candidates()
 
     fresh = [c for c in pool if state.is_fresh(c["topic"])]
-    print(f"[trends] {len(pool)} candidates, {len(fresh)} fresh after de-dup")
+    for c in fresh:
+        c["region"] = _region(c["topic"])
+        c["rank"] = c["score"] * random.uniform(0.85, 1.15)
+    buckets = {
+        r: sorted((c for c in fresh if c["region"] == r), key=lambda c: -c["rank"])
+        for r, _ in _WEIGHTS
+    }
+    print(f"[trends] {len(fresh)} fresh: "
+          + ", ".join(f"{r}={len(buckets[r])}" for r, _ in _WEIGHTS))
 
-    if fresh:
-        # Weight by demand: pageviews dominate, suggest/on-this-day get a flat
-        # base. A small jitter keeps successive days from being identical.
-        for c in fresh:
-            c["rank"] = c["score"] * random.uniform(0.85, 1.15)
-        fresh.sort(key=lambda c: c["rank"], reverse=True)
-        best = fresh[0]
-        best["boosted"] = best["source"] != "wikipedia-top"
-    else:
-        bank = [t for t in _FALLBACK_BANK if state.is_fresh(t)] or _FALLBACK_BANK
-        best = {"topic": random.choice(bank), "source": "fallback-bank", "url": "",
-                "score": 0, "boosted": False}
+    order = _weighted_order(_WEIGHTS)   # e.g. ['islamic','other','west']
+    best: dict | None = None
+    for r in order:
+        if buckets[r]:
+            best = buckets[r][0]
+            break
+    if best is None:
+        for r in order:                # nothing fresh anywhere -> curated bank
+            bank = [t for t in _BANKS[r] if state.is_fresh(t)] or _BANKS[r]
+            best = {"topic": random.choice(bank), "source": f"bank-{r}",
+                    "url": "", "score": 0}
+            break
 
+    assert best is not None
+    best["region"] = _region(best["topic"])
+    best.setdefault("boosted", best.get("source") != "wikipedia-top")
     best["seo"] = seo_terms_for(best["topic"])
-    print(f"[trends] chosen: {best['topic']!r}  ({best['source']}, "
+    print(f"[trends] chosen: {best['topic']!r}  "
+          f"({best['source']}, region={best['region']}, "
           f"score={best.get('score', 0)}, seo={best['seo'][:3]})")
     return best
