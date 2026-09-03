@@ -1,35 +1,35 @@
-# YT Shorts Agent — automated daily HISTORY Shorts
+# Horiomi — automated daily HISTORY Shorts
 
-Niche: **ancient & medieval history and historical geopolitics** — Greeks,
-Romans, Persians, Byzantines, the Islamic world, Normans, Mongols, Ottomans,
-the British Empire, the World Wars and Cold War *as history*. Surprising,
-lesser-known angles on famous subjects. **Not** current partisan politics.
+Niche: **history and historical geopolitics**, weighted **~60% Islamic world +
+subcontinent** (caliphates, sultanates, Mughals, Marathas, the Raj), **~20%
+Europe/America**, **~20% other** (China, Egypt, Persia, Mongols). Famous
+subjects, surprising lesser-known angles. **Not** current partisan politics.
 
 A hands-off pipeline that every day:
 
-1. **Finds a high-demand topic** — Wikipedia's most-viewed articles (yesterday),
-   filtered to history via their categories; Wikipedia "On this day"; real
-   YouTube search-suggest phrases for era seed terms; and a curated bank of
-   dramatic hooks. Ranked by actual audience demand, de-duplicated against
-   everything already used. The era mix is whatever people are searching that
-   week.
-2. **Writes a script** — Groq if you add a key (fast, reliable free tier), then
-   Gemini, then the keyless Pollinations text API, then a Wikipedia-seeded
-   template so it never stalls. Dramatic "storyteller" tone, real dates and
-   names, corrects the popular myth as the payoff. Narration sized to land the
-   finished short at **50–80 seconds**. Title + description + tags are seeded
-   with the YouTube-suggest phrases for SEO.
-3. **Sources visuals** — one clip/image per beat. Real **stock video** first
-   (Pexels / Pixabay / Coverr with a free key, plus keyless Wikimedia Commons
-   video), then real photos (Openverse, Wikimedia), then AI images
-   (Gemini if keyed, else keyless Pollinations). Add one stock-video key and
-   most beats become motion footage instead of stills.
-4. **Records a voiceover** — `edge-tts` Microsoft neural voice (keyless). The
-   speaking rate is auto-tuned so the runtime stays inside the 50–80s window.
+1. **Finds a high-demand topic** — Wikipedia's most-viewed articles (yesterday,
+   category-verified as history), Wikipedia "On this day", and real YouTube
+   search-suggest phrases for era seeds. Candidates are bucketed by region and
+   a bucket is drawn by the 60/20/20 weights; a curated famous-topic bank
+   backstops each bucket.
+2. **Writes a script** — Groq (free key) → Gemini → keyless Pollinations →
+   Wikipedia template. Dramatic storyteller tone, 8–14 one-sentence beats, real
+   dates and names, myth-correction payoff. Each beat gets an on-screen
+   **keyword** (date/name/place) and the script may emit a 3–6 point
+   **timeline**. Title/description/tags seeded with YouTube-suggest phrases.
+   Narration sized for a **50–80s** short.
+3. **Sources on-topic visuals** — real historical images first: the topic's own
+   Wikipedia pictures, Wikimedia paintings/engravings/**maps**, Met Museum
+   open-access art (all keyless); then an AI image built from the beat's own
+   sentence (always on-topic); stock photo/video only as a keyed supplement.
+   Every non-generated candidate passes a keyword-overlap relevance gate.
+4. **Records a voiceover** — `edge-tts` Microsoft neural voice (keyless), rate
+   auto-tuned to hit the 50–80s window.
 5. **Builds captions** — `faster-whisper` word-level timing → animated subtitles.
-6. **Edits the video** — `ffmpeg`: 1080×1920, Ken-Burns motion, burned captions,
-   voice (+ optional music bed), light cinematic grade. The final file is
-   clamped to the 50–80s window (tail held / trimmed as needed).
+6. **Edits the video** — `ffmpeg`: 1080×1920, Ken-Burns motion, burned captions
+   + amber keyword chyrons, a recurring **AI host portrait** on the intro/outro
+   cards (identity only, not lip-synced), optional timeline card, light grade.
+   Clamped to the 50–80s window.
 7. **Uploads to *your* YouTube channel as Private** — via YouTube Data API.
 8. **(optional) Copies the file to a Google Drive folder** for phone review.
 9. **Repeats daily** on GitHub Actions cron. Your PC can be off.
@@ -76,10 +76,12 @@ src/
   config.py        knobs + credential loading (nothing topic-specific)
   trends.py        pick one high-demand history topic (Wikipedia views, YouTube suggest)
   script_gen.py    topic -> {title, hook, beats[], narration, description, tags}
-  media.py         one clip/image per beat, layered free sources
+  media.py         one on-topic image per beat (Wikipedia/Wikimedia/Met/AI), relevance-gated
+  presenter.py     the recurring AI host portrait (fixed prompt + seed)
+  cards.py         Pillow: intro / outro / timeline still cards
   tts.py           narration -> voice.mp3   (edge-tts)
   captions.py      voice.mp3 -> captions.ass (faster-whisper word timings)
-  video.py         segments + captions + audio -> out/short_YYYYMMDD.mp4  (ffmpeg)
+  video.py         cards + segments + captions + keyword chyrons + audio -> mp4  (ffmpeg)
   youtube_upload.py  upload as Private (YouTube Data API v3)
   drive_upload.py    optional review copy to Google Drive
   state.py         data/used_topics.json  (committed back each run -> no repeats)
@@ -161,8 +163,12 @@ three stock keys.
 
 Optional **Variables** (same screen, "Variables" tab) to tune without code:
 `VOICE`, `GEO`, `YT_CATEGORY_ID`, `PRIVACY`, `WHISPER_MODEL`, `PREFER_VIDEO`
-(`true`/`false`), `TARGET_SECONDS_MIN` / `TARGET_SECONDS_MAX` (default 50 / 80),
-`TARGET_SECONDS`, `TTS_RATE`.
+(default `false`), `TARGET_SECONDS_MIN` / `TARGET_SECONDS_MAX` (default 50 / 80),
+`TARGET_SECONDS`, `TTS_RATE`, `CHANNEL_NAME`, `PRESENTER` (`true`/`false`),
+`PRESENTER_SEED`, `PRESENTER_PROMPT`, `CAPTION_MARGIN_V`.
+
+**Pin the host face:** commit a portrait to `assets/presenter.png` and the
+pipeline uses that instead of generating one — so the face never drifts.
 
 ### 5. Test it, then leave it alone
 
