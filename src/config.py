@@ -106,9 +106,9 @@ PREFER_VIDEO = get_bool("PREFER_VIDEO", False)
 
 # --- branding / presenter -------------------------------------------------
 CHANNEL_NAME = get("CHANNEL_NAME", "Horiomi")
-# A recurring AI-generated host portrait shown on the intro / outro cards
-# (NOT lip-synced - a brand identity, not a talking avatar).
-PRESENTER = get_bool("PRESENTER", True)
+# Host intro/outro cards. OFF by default - the AI portrait looked cheap. Turn
+# on only if you pin a good face at assets/presenter.png (PRESENTER=true).
+PRESENTER = get_bool("PRESENTER", False)
 PRESENTER_SEED = get_int("PRESENTER_SEED", 77)      # fixed -> same face every video
 PRESENTER_PROMPT = get(
     "PRESENTER_PROMPT",

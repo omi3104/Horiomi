@@ -27,9 +27,9 @@ A hands-off pipeline that every day:
    auto-tuned to hit the 50–80s window.
 5. **Builds captions** — `faster-whisper` word-level timing → animated subtitles.
 6. **Edits the video** — `ffmpeg`: 1080×1920, Ken-Burns motion, burned captions
-   + amber keyword chyrons, a recurring **AI host portrait** on the intro/outro
-   cards (identity only, not lip-synced), optional timeline card, light grade.
-   Clamped to the 50–80s window.
+   + amber keyword chyrons, optional timeline card, light grade. Clamped to the
+   50–80s window. (Optional host intro/outro cards exist but are **off** by
+   default.)
 7. **Uploads to *your* YouTube channel as Private** — via YouTube Data API.
 8. **(optional) Copies the file to a Google Drive folder** for phone review.
 9. **Repeats daily** on GitHub Actions cron. Your PC can be off.
@@ -164,11 +164,12 @@ three stock keys.
 Optional **Variables** (same screen, "Variables" tab) to tune without code:
 `VOICE`, `GEO`, `YT_CATEGORY_ID`, `PRIVACY`, `WHISPER_MODEL`, `PREFER_VIDEO`
 (default `false`), `TARGET_SECONDS_MIN` / `TARGET_SECONDS_MAX` (default 50 / 80),
-`TARGET_SECONDS`, `TTS_RATE`, `CHANNEL_NAME`, `PRESENTER` (`true`/`false`),
-`PRESENTER_SEED`, `PRESENTER_PROMPT`, `CAPTION_MARGIN_V`.
+`TARGET_SECONDS`, `TTS_RATE`, `CHANNEL_NAME`, `PRESENTER` (default **off**),
+`CAPTION_MARGIN_V`.
 
-**Pin the host face:** commit a portrait to `assets/presenter.png` and the
-pipeline uses that instead of generating one — so the face never drifts.
+**Host cards are off by default** (the generated AI portrait looked cheap). To
+use them, commit a good portrait to `assets/presenter.png` and set
+`PRESENTER=true` — then a 2.6s intro + 2.2s outro card carry that face.
 
 ### 5. Test it, then leave it alone
 
