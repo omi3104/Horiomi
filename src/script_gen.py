@@ -32,12 +32,13 @@ UA = {"User-Agent": "yt-shorts-agent/1.0 (+github actions)"}
 _TARGET_WORDS = round(config.TARGET_SECONDS * config.SPEAKING_WPS)
 _WORDS_LO = round(config.TARGET_SECONDS_MIN * config.SPEAKING_WPS) + 10
 _WORDS_HI = round(config.TARGET_SECONDS_MAX * config.SPEAKING_WPS) - 10
-_MIN_BEATS = 6
-_MAX_BEATS = 10
+_MIN_BEATS = 8
+_MAX_BEATS = 14
 
 _SCHEMA_HINT = (
     '{"title": str<=70, "hook": str, '
-    f'"beats": [{{"say": str, "visual": str}}] ({_MIN_BEATS}-{_MAX_BEATS} items), '
+    f'"beats": [{{"say": str, "visual": str, "keyword": str}}] ({_MIN_BEATS}-{_MAX_BEATS} items), '
+    '"timeline": [{"year": int, "label": str}] (3-6 items, or []), '
     '"cta": str, "description": str, "tags": [str], "hashtags": [str]}'
 )
 
@@ -63,11 +64,18 @@ _PROMPT = textwrap.dedent(
     - Narration = hook + every beat + cta, {words_lo} to {words_hi} words TOTAL
       (aim for {words_target}) - about {seconds} seconds of speech. Do NOT stop
       early; keep adding concrete detail, stakes and consequence.
-    - {beats_lo} to {beats_hi} beats. Each beat = one or two sentences plus a
-      concrete visual search phrase of real historical nouns a stock library
-      would have ("Roman legionaries shield wall", "Hagia Sophia interior dome",
-      "medieval siege tower assault", "Persian relief carving Persepolis") -
-      never abstractions like "power" or "glory".
+    - {beats_lo} to {beats_hi} beats. Each beat is ONE short spoken sentence
+      (so the picture can change often). For each beat give:
+        * "visual": a concrete image search phrase of real historical nouns
+          ("Mongol cavalry siege of Baghdad", "Hagia Sophia interior dome",
+          "Mughal miniature painting Akbar court", "map of the Abbasid
+          Caliphate") - never abstractions like "power" or "glory". Use a
+          "map of ..." phrase for 1-2 beats where geography matters.
+        * "keyword": the single most important date, name or place in that
+          beat, 1-3 words, shown as an on-screen caption ("1258", "Hulagu
+          Khan", "Ain Jalut").
+    - "timeline": 3-6 {{year, label}} points if the topic has a clear
+      chronology (year is an integer, negative for BC), otherwise [].
     - Title <= 70 chars, a curiosity gap, front-load the strongest keyword, no
       ALL CAPS, no clickbait lie. Plain hyphens only, no fancy dashes.
     - SEO: work ONE of these real YouTube search phrases naturally into the
@@ -371,11 +379,12 @@ def _template(topic: str) -> dict:
         i += 1
     body = body[:_MAX_BEATS]
 
-    beats = [{"say": s, "visual": topic} for s in body]
+    beats = [{"say": s, "visual": topic, "keyword": topic[:24]} for s in body]
     return {
         "title": f"The untold story of {topic}"[:70],
         "hook": f"Most people get {topic} completely wrong.",
         "beats": beats,
+        "timeline": [],
         "cta": "Follow for a piece of history every day.",
         "description": f"A surprising look at {topic}.",
         "tags": list(_HISTORY_TAGS),
@@ -383,13 +392,32 @@ def _template(topic: str) -> dict:
     }
 
 
+def _clean_timeline(raw) -> list[dict]:
+    out: list[dict] = []
+    for p in raw or []:
+        if not isinstance(p, dict):
+            continue
+        try:
+            year = int(str(p.get("year")).strip().lstrip("c").strip())
+        except (TypeError, ValueError):
+            continue
+        label = _fix_unicode(str(p.get("label", "")).strip())
+        if label and -4000 < year < 2100:
+            out.append({"year": year, "label": label[:70]})
+    # dedupe by year, keep order, cap 6
+    seen: set[int] = set()
+    uniq = [p for p in out if not (p["year"] in seen or seen.add(p["year"]))]
+    return uniq[:6]
+
+
 def _normalise(topic: str, data: dict, seo_terms: list[str] | None = None) -> dict:
     beats: list[dict] = []
     for b in data.get("beats", []):
         say = _fix_unicode(str(b.get("say", "")).strip())
         visual = _fix_unicode(str(b.get("visual", "")).strip()) or topic
+        keyword = _fix_unicode(str(b.get("keyword", "")).strip())[:28]
         if say:
-            beats.append({"say": say, "visual": visual})
+            beats.append({"say": say, "visual": visual, "keyword": keyword})
     if len(beats) < 3:
         raise ValueError("script has too few usable beats")
 
@@ -422,6 +450,7 @@ def _normalise(topic: str, data: dict, seo_terms: list[str] | None = None) -> di
         "title": title[:100],
         "hook": hook,
         "beats": beats,
+        "timeline": _clean_timeline(data.get("timeline")),
         "cta": cta,
         "narration": narration,
         "description": description,

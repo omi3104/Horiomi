@@ -100,8 +100,22 @@ WHISPER_MODEL = get("WHISPER_MODEL", "small")
 TOPIC_OVERRIDE = get("TOPIC_OVERRIDE")
 DRY_RUN = get("DRY_RUN", "").lower() in ("1", "true", "yes")   # build but do not upload
 
-# Prefer real motion footage over stills when a source has any.
-PREFER_VIDEO = get_bool("PREFER_VIDEO", True)
+# Prefer real motion footage over stills when a source has any. Off by default
+# now - a history channel wants relevant images, not generic stock clips.
+PREFER_VIDEO = get_bool("PREFER_VIDEO", False)
+
+# --- branding / presenter -------------------------------------------------
+CHANNEL_NAME = get("CHANNEL_NAME", "Horiomi")
+# A recurring AI-generated host portrait shown on the intro / outro cards
+# (NOT lip-synced - a brand identity, not a talking avatar).
+PRESENTER = get_bool("PRESENTER", True)
+PRESENTER_SEED = get_int("PRESENTER_SEED", 77)      # fixed -> same face every video
+PRESENTER_PROMPT = get(
+    "PRESENTER_PROMPT",
+    "portrait of a calm confident male history narrator, 30s, short dark beard, "
+    "warm brown eyes, plain dark shirt, soft studio light, neutral dark background, "
+    "photorealistic, head and shoulders, looking at camera",
+)
 
 # --- video spec ------------------------------------------------------
 WIDTH, HEIGHT = 1080, 1920

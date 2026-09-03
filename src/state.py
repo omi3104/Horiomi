@@ -72,6 +72,7 @@ def write_last_run(picked: dict, script: dict, result: dict) -> None:
         "tags": script.get("tags", []),
         "hashtags": script.get("hashtags", []),
         "beats": script.get("beats", []),
+        "timeline": script.get("timeline", []),
         "word_count": script.get("word_count"),
         "duration_seconds": script.get("duration_seconds"),
         "target_window": [config.TARGET_SECONDS_MIN, config.TARGET_SECONDS_MAX],
