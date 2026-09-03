@@ -36,7 +36,7 @@ def run() -> int:
 
     script = script_gen.build(topic, picked.get("seo"))
 
-    media_items = media.fetch_for_beats(script["beats"])
+    media_items = media.fetch_for_beats(script["beats"], topic)
     audio, _speech_secs, spoken = tts.synthesize(script["narration"])
     script["narration_spoken"] = spoken
     ass = captions.build(audio, spoken)
