@@ -24,7 +24,8 @@ import requests
 
 from . import config
 
-UA = {"User-Agent": "yt-shorts-agent/1.1 (history shorts; github actions)"}
+# Wikimedia throttles generic agents hard - their policy wants a real contact.
+UA = {"User-Agent": "HoriomiHistoryShorts/1.1 (+https://github.com/omi3104/Horiomi)"}
 MEDIA_DIR = config.WORK / "media"
 _used_urls: set[str] = set()
 
@@ -116,38 +117,47 @@ def _beat_queries(beat: dict, topic: str) -> list[str]:
 
 
 def _download(url: str, dest_stem: str, kind_hint: str = "") -> str | None:
-    if not url or url in _used_urls:
+    if not url:
+        return None
+    url = url.split("?utm", 1)[0]          # drop Wikimedia's tracking params
+    if url in _used_urls:
         return None
     cap = _MAX_VIDEO_BYTES if kind_hint == "video" else 25_000_000
-    path = None
-    try:
-        with requests.get(url, headers=UA, stream=True, timeout=90) as r:
-            r.raise_for_status()
-            ctype = (r.headers.get("content-type") or "").split(";")[0].strip()
-            ext = mimetypes.guess_extension(ctype) or ""
-            if ext in ("", ".bin", ".jpe"):
-                ext = ".mp4" if (kind_hint == "video" or "video" in ctype) else ".jpg"
-            path = MEDIA_DIR / f"{dest_stem}{ext}"
-            size = 0
-            with open(path, "wb") as fh:
-                for chunk in r.iter_content(chunk_size=1 << 16):
-                    fh.write(chunk)
-                    size += len(chunk)
-                    if size > cap:
-                        raise ValueError(f"exceeds {cap // 1_000_000} MB cap")
-        if size < _MIN_BYTES:
-            path.unlink(missing_ok=True)
-            return None
-        _used_urls.add(url)
-        return str(path)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[media]   download failed ({exc})")
-        if path is not None:
-            try:
+    for attempt in range(3):
+        path = None
+        try:
+            with requests.get(url, headers=UA, stream=True, timeout=90) as r:
+                if r.status_code == 429:
+                    time.sleep(2 + attempt * 3)
+                    continue
+                r.raise_for_status()
+                ctype = (r.headers.get("content-type") or "").split(";")[0].strip()
+                ext = mimetypes.guess_extension(ctype) or ""
+                if ext in ("", ".bin", ".jpe"):
+                    ext = ".mp4" if (kind_hint == "video" or "video" in ctype) else ".jpg"
+                path = MEDIA_DIR / f"{dest_stem}{ext}"
+                size = 0
+                with open(path, "wb") as fh:
+                    for chunk in r.iter_content(chunk_size=1 << 16):
+                        fh.write(chunk)
+                        size += len(chunk)
+                        if size > cap:
+                            raise ValueError(f"exceeds {cap // 1_000_000} MB cap")
+            if size < _MIN_BYTES:
                 path.unlink(missing_ok=True)
-            except OSError:
-                pass
-        return None
+                return None
+            _used_urls.add(url)
+            return str(path)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[media]   download failed ({exc})")
+            if path is not None:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            return None
+    print("[media]   download gave up after repeated 429s")
+    return None
 
 
 # =====================================================================
@@ -222,16 +232,23 @@ def _topic_wikipedia_images(topic: str) -> list[str]:
                     "prop": "imageinfo", "iiprop": "url|size", "iiurlwidth": config.WIDTH},
             headers=UA, timeout=25,
         ).json()
+        junk = (".svg", "commons-logo", "wiki", "icon", "edit-", "ambox",
+                "question_book", "folder", "loudspeaker", "red_pog", "increase",
+                "decrease", "symbol", "flag_of", "coat_of_arms", "map_marker",
+                "gnome-", "crystal_", "nuvola", "portal-", "star_full",
+                "location_dot", "blank_", "disambig", "wiktionary")
         for p in r.get("query", {}).get("pages", {}).values():
-            name = p.get("title", "").lower()
-            if any(x in name for x in (".svg", "commons-logo", "wiki", "icon",
-                                       "edit-", "ambox", "question_book", "folder",
-                                       "loudspeaker", "red_pog", "increase", "decrease")):
+            name = p.get("title", "")
+            low = name.lower()
+            if any(x in low for x in junk):
+                continue
+            # must actually relate to the topic - navbox/template images leak in
+            if not _relevant(topic, name.replace("File:", "").replace("_", " ")):
                 continue
             info = (p.get("imageinfo") or [{}])[0]
             u = info.get("thumburl") or info.get("url", "")
             if u and (info.get("width") or 0) >= 300:
-                urls.append(u)
+                urls.append(u.split("?utm", 1)[0])
     except Exception as exc:  # noqa: BLE001
         print(f"[media] wikipedia topic images failed: {exc}")
     print(f"[media] {len(urls)} on-topic Wikipedia images for {topic!r}")
@@ -456,9 +473,10 @@ def fetch_for_beats(beats: list[dict], topic: str = "") -> list[dict]:
     topic_pool = _topic_wikipedia_images(topic) if topic else []
     tp_i = 0
 
-    providers = list(_HISTORY_PROVIDERS) + list(_STOCK_PROVIDERS)
-    if config.PREFER_VIDEO:
-        providers += list(_VIDEO_PROVIDERS)
+    history = list(_HISTORY_PROVIDERS)
+    # stock photo is a weak last resort for a history channel - an AI painting
+    # of the actual scene beats a random Pexels stock photo. Video only if asked.
+    last_resort = list(_STOCK_PROVIDERS) + (list(_VIDEO_PROVIDERS) if config.PREFER_VIDEO else [])
 
     results: list[dict] = []
     distinct: list[dict] = []
@@ -469,7 +487,7 @@ def fetch_for_beats(beats: list[dict], topic: str = "") -> list[dict]:
 
         path = None
         for q in queries:
-            for provider in providers:
+            for provider in history:
                 path = provider(q, stem)
                 if path:
                     print(f"[media]   -> {provider.__name__}  ({q!r})")
@@ -477,7 +495,7 @@ def fetch_for_beats(beats: list[dict], topic: str = "") -> list[dict]:
             if path:
                 break
 
-        # an actual on-topic Wikipedia picture beats a generic stock hit
+        # the subject's own Wikipedia-article pictures
         if not path and tp_i < len(topic_pool):
             for u in topic_pool[tp_i:]:
                 tp_i += 1
@@ -487,11 +505,23 @@ def fetch_for_beats(beats: list[dict], topic: str = "") -> list[dict]:
                     print(f"[media]   -> wikipedia_topic_image")
                     break
 
+        # an AI image built from this beat's own sentence - always on-topic
         if not path:
             prompt = _ai_prompt(beat, topic)
             path = _gemini_image(prompt, stem) or _pollinations(prompt, stem, seed=1000 + i * 7)
             if path:
                 print(f"[media]   -> AI image")
+
+        # only now fall back to generic stock
+        if not path:
+            for q in queries:
+                for provider in last_resort:
+                    path = provider(q, stem)
+                    if path:
+                        print(f"[media]   -> {provider.__name__} (stock fallback, {q!r})")
+                        break
+                if path:
+                    break
 
         if path:
             kind = "video" if path.lower().endswith(_VIDEO_EXTS) else "image"

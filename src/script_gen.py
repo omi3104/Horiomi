@@ -61,11 +61,12 @@ _PROMPT = textwrap.dedent(
     - Tone: dramatic and vivid, like a storyteller who was there. Short punchy
       sentences, mostly 2nd/3rd person. No markdown, no emojis, no "in this
       video", no stage directions, no "let that sink in".
-    - Narration = hook + every beat + cta, {words_lo} to {words_hi} words TOTAL
-      (aim for {words_target}) - about {seconds} seconds of speech. Do NOT stop
-      early; keep adding concrete detail, stakes and consequence.
-    - {beats_lo} to {beats_hi} beats. Each beat is ONE short spoken sentence
-      (so the picture can change often). For each beat give:
+    - HARD REQUIREMENT: narration (hook + every beat + cta) is {words_lo} to
+      {words_hi} words TOTAL, aim for {words_target}. This fills about {seconds}
+      seconds of speech - a shorter script makes the voice drag. Count as you go.
+    - {beats_lo} to {beats_hi} beats. Each beat is ONE spoken sentence of about
+      13 to 20 words (vivid, with a concrete detail) - so the picture changes
+      often but the narration still reaches the word target. For each beat give:
         * "visual": a concrete image search phrase of real historical nouns
           ("Mongol cavalry siege of Baghdad", "Hagia Sophia interior dome",
           "Mughal miniature painting Akbar court", "map of the Abbasid
@@ -137,8 +138,24 @@ def _groq_is_reasoning(model: str) -> bool:
     return any(h in m for h in _GROQ_REASONING)
 
 
+def _groq_pref(model: str) -> int:
+    """Lower = try sooner. gpt-oss and llama are the reliable JSON producers;
+    qwen3 on Groq has hit both json_validate_failed and the reasoning_effort
+    quirk, so it goes last."""
+    m = model.lower()
+    if "llama-3.3-70b" in m or "gpt-oss-120b" in m:
+        return 0
+    if "gpt-oss" in m or ("llama" in m and "guard" not in m):
+        return 1
+    if "kimi" in m:
+        return 2
+    if "qwen" in m:
+        return 4
+    return 3
+
+
 def _groq_models() -> list[str]:
-    """Live model ids for this key, non-reasoning first, then the hardcoded rest."""
+    """Live model ids for this key, ordered by _groq_pref, then the hardcoded rest."""
     live: list[str] = []
     try:
         r = requests.get(f"{_GROQ_URL}/models",
@@ -146,7 +163,7 @@ def _groq_models() -> list[str]:
         if r.ok:
             ids = [m.get("id", "") for m in r.json().get("data", [])]
             chat = [i for i in ids if i and not any(b in i.lower() for b in _GROQ_SKIP)]
-            live = [i for i in chat if not _groq_is_reasoning(i)] + [i for i in chat if _groq_is_reasoning(i)]
+            live = sorted(chat, key=lambda m: (_groq_pref(m), m))
             print(f"[script] groq available: {live[:8]}")
         else:
             print(f"[script] groq list-models HTTP {r.status_code} {r.text[:160]!r}")

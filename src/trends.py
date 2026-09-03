@@ -145,16 +145,21 @@ _R_WEST = re.compile(
     r"britain|british|england|english|scotland|ireland|\bwales\b|france|french|"
     r"spain|spanish|portugal|portuguese|german|prussia|austria|habsburg|"
     r"italy|italian|venice|florence|genoa|papal|\bpope\b|holy roman|"
-    r"russia|russian|\btsar|romanov|poland|polish|sweden|swedish|dutch|"
+    r"russia|russian|\btsar|romanov|poland|polish|sweden|swedish|dutch|belgian|"
     r"united states|america|american revolution|confedera|\bunion\b|"
     r"napoleon|waterloo|bismarck|world war|western front|cold war|nazi|"
-    r"churchill|lincoln|washington|jefferson|tudor|stuart|plantagenet",
+    r"churchill|lincoln|washington|jefferson|tudor|stuart|plantagenet|"
+    # famous Western battlefields / events that don't name a country
+    r"sedan|verdun|\bsomme\b|\bmarne\b|ypres|passchendaele|gallipoli|"
+    r"agincourt|crecy|crécy|hastings|bosworth|trafalgar|gettysburg|"
+    r"antietam|bull run|d-day|normandy|stalingrad|kursk|dunkirk|"
+    r"thirty years|hundred years|franco-prussian|peloponnesian|punic",
     re.I,
 )
 
 
-def _region(topic: str) -> str:
-    t = (topic or "").lower()
+def _region(topic: str, extra: str = "") -> str:
+    t = f"{topic or ''} {extra or ''}".lower()
     if _R_ISLAMIC.search(t):
         return "islamic"
     if _R_WEST.search(t):
@@ -443,7 +448,7 @@ def pick_topic() -> dict:
 
     fresh = [c for c in pool if state.is_fresh(c["topic"])]
     for c in fresh:
-        c["region"] = _region(c["topic"])
+        c["region"] = _region(c["topic"], c.get("url", ""))
         c["rank"] = c["score"] * random.uniform(0.85, 1.15)
     buckets = {
         r: sorted((c for c in fresh if c["region"] == r), key=lambda c: -c["rank"])
