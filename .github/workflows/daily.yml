@@ -13,6 +13,12 @@ on:
         description: "Build only, do not upload"
         type: boolean
         default: false
+      format:
+        description: "Video format (blank = repo default / slideshow)"
+        required: false
+        type: choice
+        default: ""
+        options: ["", "slideshow", "dialogue"]
 
 concurrency:
   group: daily-short
@@ -71,6 +77,14 @@ jobs:
           TARGET_SECONDS_MAX: ${{ vars.TARGET_SECONDS_MAX || '80' }}
           TARGET_SECONDS: ${{ vars.TARGET_SECONDS }}
           TTS_RATE: ${{ vars.TTS_RATE || '8' }}
+          # format: slideshow (default) or dialogue (experimental two-host
+          # animated debate). pipeline.py auto-falls-back to slideshow if
+          # dialogue mode errors, so this is safe to try.
+          FORMAT: ${{ github.event.inputs.format || vars.FORMAT || 'slideshow' }}
+          LANGUAGE: ${{ vars.LANGUAGE || 'en' }}
+          CAPTION_SCRIPT: ${{ vars.CAPTION_SCRIPT || 'roman' }}
+          SKEPTIC_VOICE: ${{ vars.SKEPTIC_VOICE }}
+          EXPERT_VOICE: ${{ vars.EXPERT_VOICE }}
           TOPIC_OVERRIDE: ${{ github.event.inputs.topic }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: python -m src.pipeline

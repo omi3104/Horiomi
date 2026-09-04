@@ -320,6 +320,41 @@ after every build (including dry runs).
 
 ---
 
+## Dialogue mode (experimental) — two animated hosts instead of a slideshow
+
+Set `FORMAT=dialogue` (repo Variable, or the `format` option on **Run
+workflow**) and the short becomes a **Skeptic** and an **Expert** debating the
+topic — one AI-generated portrait per host (or pin your own at
+`assets/characters/skeptic.png` / `expert.png`), an amber "speaking" glow ring
++ live waveform on whoever is talking, a subtle breathing pulse, karaoke
+captions and the keyword chyron underneath. No GPU, no paid avatar API — it's
+a speaking **indicator** animation (glow/waveform/pulse), not lip-synced mouth
+movement; see `src/characters.py` for why, and how to add real mouth-flap once
+you've seen a render and can mark where the mouth sits on your art.
+
+`FORMAT=slideshow` (default) is unchanged and proven. If dialogue mode errors
+for any reason, `pipeline.py` automatically rebuilds that day with slideshow
+instead — a bad experimental render never costs you the daily upload. Try it
+with **Actions → daily-short → Run workflow → format: dialogue → dry_run**
+first and check the artifact before trusting it on the cron.
+
+Tune with `SKEPTIC_NAME` / `EXPERT_NAME`, `SKEPTIC_VOICE` / `EXPERT_VOICE`
+(edge-tts voice IDs), `SKEPTIC_PROMPT` / `EXPERT_PROMPT` / `*_SEED` (the AI
+portrait prompt + seed).
+
+---
+
+## Urdu narration (free)
+
+Set `LANGUAGE=ur` — narration switches to free edge-tts Urdu neural voices
+(`ur-PK-AsadNeural` / `ur-PK-UzmaNeural`) and the script model writes the
+spoken lines in Urdu. Captions stay **Roman Urdu** (`CAPTION_SCRIPT=roman`,
+the default) since Nastaliq script needs a font this pipeline doesn't ship;
+titles/tags/descriptions/image search stay English so SEO and visuals still
+work.
+
+---
+
 ## Notes / caveats
 
 - **Monetisation:** fully auto-generated faceless Shorts can hit YouTube's
