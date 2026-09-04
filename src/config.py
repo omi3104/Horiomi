@@ -121,6 +121,13 @@ PRESENTER_PROMPT = get(
 WIDTH, HEIGHT = 1080, 1920
 FPS = 30
 
+# --- editing polish -------------------------------------------------------
+PROGRESS_BAR = get_bool("PROGRESS_BAR", True)   # thin amber bar along the bottom
+SFX = get_bool("SFX", True)                     # soft whoosh on every image cut
+MUSIC = get("MUSIC", "ambient").lower()         # ambient | off  (a file in
+#   assets/music/*.mp3 always wins over the generated bed)
+MUSIC_VOLUME = get_float("MUSIC_VOLUME", 0.10)
+
 # --- length target -----------------------------------------------------
 # The finished short is kept inside this window: script_gen sizes the narration
 # to roughly TARGET_SECONDS, tts.py nudges the speaking rate to land in range,

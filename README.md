@@ -26,10 +26,12 @@ A hands-off pipeline that every day:
 4. **Records a voiceover** — `edge-tts` Microsoft neural voice (keyless), rate
    auto-tuned to hit the 50–80s window.
 5. **Builds captions** — `faster-whisper` word-level timing → animated subtitles.
-6. **Edits the video** — `ffmpeg`: 1080×1920, Ken-Burns motion, burned captions
-   + amber keyword chyrons, optional timeline card, light grade. Clamped to the
-   50–80s window. (Optional host intro/outro cards exist but are **off** by
-   default.)
+6. **Edits the video** — `ffmpeg`: 1080×1920, varied Ken-Burns motion
+   (zoom/pan) easing in on every cut, **karaoke captions** (each word lights
+   up as spoken), amber keyword chyrons, a progress bar, a soft generated
+   ambient bed + a whoosh on each cut, optional timeline card, light grade.
+   Image lengths follow the real spoken time so the picture tracks the voice.
+   Clamped to 50–80s. (Host intro/outro cards exist but are **off** by default.)
 7. **Uploads to *your* YouTube channel as Private** — via YouTube Data API.
 8. **(optional) Copies the file to a Google Drive folder** for phone review.
 9. **Repeats daily** on GitHub Actions cron. Your PC can be off.
@@ -165,7 +167,9 @@ Optional **Variables** (same screen, "Variables" tab) to tune without code:
 `VOICE`, `GEO`, `YT_CATEGORY_ID`, `PRIVACY`, `WHISPER_MODEL`, `PREFER_VIDEO`
 (default `false`), `TARGET_SECONDS_MIN` / `TARGET_SECONDS_MAX` (default 50 / 80),
 `TARGET_SECONDS`, `TTS_RATE`, `CHANNEL_NAME`, `PRESENTER` (default **off**),
-`CAPTION_MARGIN_V`.
+`CAPTION_MARGIN_V`, `PROGRESS_BAR`, `SFX`, `MUSIC` (`ambient`/`off`),
+`MUSIC_VOLUME`. Drop your own track in `assets/music/*.mp3` to override the
+generated ambient bed.
 
 **Host cards are off by default** (the generated AI portrait looked cheap). To
 use them, commit a good portrait to `assets/presenter.png` and set

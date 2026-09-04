@@ -1,4 +1,4 @@
-"""Word-timed karaoke captions.
+"""Word-timed karaoke captions (each word lights up as it is spoken).
 
 Primary: faster-whisper transcribes the generated voiceover for real word
 timings. Fallback: distribute the known narration text evenly across the
@@ -12,12 +12,11 @@ from . import config, util
 
 ASS_PATH = config.WORK / "captions.ass"
 
-MAX_WORDS_PER_CUE = 3
-MAX_CUE_SECONDS = 1.7
+MAX_WORDS_PER_CUE = 4
+MAX_CUE_SECONDS = 2.2
 
-# Alignment 2 = bottom-centre; MarginV lifts the text up out of the very bottom
-# so it clears the YouTube Shorts UI (progress bar, like/share rail). Tune with
-# the CAPTION_MARGIN_V env var (pixels, PlayResY is 1920).
+# Primary = spoken (amber highlight), Secondary = not-yet-spoken (white).
+# \kf sweeps the fill from Secondary -> Primary across each word.
 _ASS_HEADER = """\
 [Script Info]
 ScriptType: v4.00+
@@ -28,11 +27,14 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Caption,DejaVu Sans,96,&H00FFFFFF,&H000000FF,&H00101010,&H80000000,-1,0,0,0,100,100,0.6,0,1,6,3,2,80,80,{mv},1
+Style: Caption,DejaVu Sans,98,&H002EA8E0,&H00FFFFFF,&H00101010,&H96000000,-1,0,0,0,100,100,0.8,0,1,7,4,2,90,90,{mv},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+
+# entrance: quick fade + a small overshoot pop
+_FX = r"{\fad(50,40)\t(0,130,\fscx113\fscy113)\t(130,250,\fscx100\fscy100)}"
 
 
 def _ts(seconds: float) -> str:
@@ -47,22 +49,29 @@ def _esc(text: str) -> str:
     return text.replace("\\", "").replace("{", "(").replace("}", ")").strip()
 
 
-def _cues_from_words(words: list[tuple[float, float, str]]) -> list[tuple[float, float, str]]:
-    cues: list[tuple[float, float, str]] = []
+def _finish(bucket: list[tuple[float, float, str]]) -> tuple[float, float, list[tuple[str, int]]]:
+    start = bucket[0][0]
+    end = max(bucket[-1][1], start + 0.5)
+    kw: list[tuple[str, int]] = []
+    for i, (ws, _we, tok) in enumerate(bucket):
+        nxt = bucket[i + 1][0] if i + 1 < len(bucket) else end
+        cs = max(1, round((nxt - ws) * 100))          # karaoke duration, centiseconds
+        kw.append((_esc(tok).upper(), cs))
+    return start, end, kw
+
+
+def _cues_from_words(words: list[tuple[float, float, str]]):
+    cues = []
     bucket: list[tuple[float, float, str]] = []
     for w in words:
         bucket.append(w)
         span = bucket[-1][1] - bucket[0][0]
-        if len(bucket) >= MAX_WORDS_PER_CUE or span >= MAX_CUE_SECONDS or w[2].strip().endswith((".", "!", "?")):
-            start = bucket[0][0]
-            end = max(bucket[-1][1], start + 0.4)
-            text = " ".join(x[2].strip() for x in bucket).upper()
-            cues.append((start, end, text))
+        if (len(bucket) >= MAX_WORDS_PER_CUE or span >= MAX_CUE_SECONDS
+                or w[2].strip().endswith((".", "!", "?", ";", ":"))):
+            cues.append(_finish(bucket))
             bucket = []
     if bucket:
-        start = bucket[0][0]
-        end = max(bucket[-1][1], start + 0.4)
-        cues.append((start, end, " ".join(x[2].strip() for x in bucket).upper()))
+        cues.append(_finish(bucket))
     return cues
 
 
@@ -103,9 +112,9 @@ def build(audio_path: str, narration: str) -> str:
     cues = _cues_from_words(words)
     margin_v = config.get_int("CAPTION_MARGIN_V", 380)
     lines = [_ASS_HEADER.format(w=config.WIDTH, h=config.HEIGHT, mv=margin_v)]
-    for start, end, text in cues:
-        fx = r"{\fad(70,60)\t(0,120,\fscx112\fscy112)\t(120,220,\fscx100\fscy100)}"
-        lines.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Caption,,0,0,0,,{fx}{_esc(text)}")
+    for start, end, kw in cues:
+        body = "".join(rf"{{\kf{cs}}}{tok} " for tok, cs in kw).rstrip()
+        lines.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Caption,,0,0,0,,{_FX}{body}")
     ASS_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"[captions] wrote {len(cues)} cues -> {ASS_PATH}")
+    print(f"[captions] wrote {len(cues)} karaoke cues -> {ASS_PATH}")
     return str(ASS_PATH)
