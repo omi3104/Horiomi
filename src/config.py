@@ -82,9 +82,49 @@ PIXABAY_API_KEY = get("PIXABAY_API_KEY")   # extra stock video + photo source
 COVERR_API_KEY = get("COVERR_API_KEY")     # cinematic free stock video if set
 DRIVE_FOLDER_ID = get("DRIVE_FOLDER_ID")   # also copy finished video here
 
+# "ur" switches narration + captions to Urdu (edge-tts has free Urdu neural
+# voices - no cost). Captions stay Roman Urdu (Latin script) by default since
+# Nastaliq needs a font this pipeline doesn't ship; set CAPTION_SCRIPT=urdu
+# once you've added a Nastaliq font to the runner if you want native script.
+LANGUAGE = get("LANGUAGE", "en").lower()
+CAPTION_SCRIPT = get("CAPTION_SCRIPT", "roman").lower()   # roman | urdu
+_LANGUAGE_NAMES = {"en": "English", "ur": "Urdu"}
+LANGUAGE_NAME = _LANGUAGE_NAMES.get(LANGUAGE, "English")
+
 # --- knobs -------------------------------------------------------------
-VOICE = get("VOICE", "en-US-AndrewNeural")
+_DEFAULT_VOICES = {"en": "en-US-AndrewNeural", "ur": "ur-PK-AsadNeural"}
+VOICE = get("VOICE") or _DEFAULT_VOICES.get(LANGUAGE, _DEFAULT_VOICES["en"])
 GEO = get("GEO", "US")
+
+# --- format: slideshow (proven, default) vs dialogue (experimental) -------
+# dialogue = two cartoon hosts (skeptic + expert) debating the topic instead
+# of an image-per-beat slideshow. Opt-in: the daily cron stays on slideshow
+# until you set this. pipeline.py auto-falls-back to slideshow if the
+# dialogue render errors, so a bad day never loses the upload.
+FORMAT = get("FORMAT", "slideshow").lower()   # slideshow | dialogue
+
+# --- dialogue-mode voices + characters -------------------------------
+_SKEPTIC_VOICES = {"en": "en-US-AriaNeural", "ur": "ur-PK-UzmaNeural"}
+_EXPERT_VOICES = {"en": "en-US-GuyNeural", "ur": "ur-PK-AsadNeural"}
+SKEPTIC_VOICE = get("SKEPTIC_VOICE") or _SKEPTIC_VOICES.get(LANGUAGE, _SKEPTIC_VOICES["en"])
+EXPERT_VOICE = get("EXPERT_VOICE") or _EXPERT_VOICES.get(LANGUAGE, _EXPERT_VOICES["en"])
+SKEPTIC_NAME = get("SKEPTIC_NAME", "Skeptic")
+EXPERT_NAME = get("EXPERT_NAME", "Expert")
+SKEPTIC_SEED = get_int("SKEPTIC_SEED", 411)
+EXPERT_SEED = get_int("EXPERT_SEED", 822)
+SKEPTIC_PROMPT = get(
+    "SKEPTIC_PROMPT",
+    "flat vector illustration portrait bust, young skeptical podcast host, "
+    "one eyebrow raised, arms-crossed energy, casual hoodie, simple flat "
+    "colours, clean bold outlines, plain solid background, front facing, "
+    "centered, no text",
+)
+EXPERT_PROMPT = get(
+    "EXPERT_PROMPT",
+    "flat vector illustration portrait bust, warm scholarly history expert, "
+    "glasses, tweed jacket, confident knowing smile, simple flat colours, "
+    "clean bold outlines, plain solid background, front facing, centered, no text",
+)
 
 YT_CATEGORY_ID = get("YT_CATEGORY_ID", "27")   # 27 = Education
 if not YT_CATEGORY_ID.isdigit():

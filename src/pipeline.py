@@ -1,10 +1,13 @@
 """End-to-end daily run:
 
-  trend -> script -> media -> voiceover -> captions -> video -> YouTube (private)
-        -> optional Drive copy -> record history
+  trend -> script -> media/animation -> voiceover -> captions -> video
+        -> YouTube (private) -> optional Drive copy -> record history
 
 Run:  python -m src.pipeline
 Env:  DRY_RUN=1  builds the video but skips the upload.
+      FORMAT=dialogue tries the two-host animated debate; if anything in that
+      path raises, this falls back to the proven slideshow format for the
+      SAME topic, so a bad day never loses the upload.
 """
 from __future__ import annotations
 
@@ -26,16 +29,12 @@ def _summary(lines: list[str]) -> None:
             fh.write(text)
 
 
-def run() -> int:
-    config.ensure_dirs()
-    date = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
+def _units(script: dict) -> list:
+    return script.get("beats") or script.get("turns") or []
 
-    picked = trends.pick_topic()
-    topic = picked["topic"]
-    print(f"\n=== TOPIC: {topic}  (source: {picked['source']}) ===\n")
 
+def _build_slideshow(topic: str, picked: dict) -> tuple[dict, str]:
     script = script_gen.build(topic, picked.get("seo"))
-
     media_items = media.fetch_for_beats(script["beats"], topic)
     audio, _speech_secs, spoken = tts.synthesize(script["narration"])
     script["narration_spoken"] = spoken
@@ -44,6 +43,43 @@ def run() -> int:
                               script.get("timeline"),
                               hook=script.get("hook", ""), cta=script.get("cta", ""))
     script["duration_seconds"] = round(util.probe_duration(video_path), 1)
+    script.setdefault("format", "slideshow")
+    return script, video_path
+
+
+def _build_dialogue(topic: str, picked: dict) -> tuple[dict, str]:
+    script = script_gen.build_dialogue(topic, picked.get("seo"))
+    audio, _speech_secs, turns = tts.synthesize_dialogue(script["turns"])
+    script["turns"] = turns   # now carries real start/end timing
+    script["narration_spoken"] = script["narration"]
+    ass = captions.build(audio, script["narration"])
+    video_path = video.render_dialogue(turns, audio, ass, script.get("timeline"))
+    if not video_path:
+        raise RuntimeError("dialogue video render produced no file")
+    script["duration_seconds"] = round(util.probe_duration(video_path), 1)
+    return script, video_path
+
+
+def _build(topic: str, picked: dict) -> tuple[dict, str]:
+    if config.FORMAT == "dialogue":
+        try:
+            return _build_dialogue(topic, picked)
+        except Exception:  # noqa: BLE001 - never lose the day to the experimental path
+            print("[pipeline] dialogue format failed; falling back to slideshow:")
+            traceback.print_exc()
+    return _build_slideshow(topic, picked)
+
+
+def run() -> int:
+    config.ensure_dirs()
+    date = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
+
+    picked = trends.pick_topic()
+    topic = picked["topic"]
+    print(f"\n=== TOPIC: {topic}  (source: {picked['source']}, "
+          f"format: {config.FORMAT}) ===\n")
+
+    script, video_path = _build(topic, picked)
 
     (config.OUT / f"script_{date}.json").write_text(
         json.dumps({"picked": picked, "script": script}, indent=2, ensure_ascii=False),
@@ -56,11 +92,12 @@ def run() -> int:
         _summary([
             "## Short built (DRY RUN - not uploaded)",
             f"- **Topic:** {topic}",
+            f"- **Format:** {script.get('format', 'slideshow')}",
             f"- **Title:** {script['title']}",
             f"- **File:** `{os.path.basename(video_path)}` (see workflow artifact)",
             f"- **Length:** {script['duration_seconds']}s "
             f"(target {config.TARGET_SECONDS_MIN}-{config.TARGET_SECONDS_MAX}s)",
-            f"- **Words:** {script['word_count']}  •  **Beats:** {len(script['beats'])}",
+            f"- **Words:** {script['word_count']}  •  **Beats/turns:** {len(_units(script))}",
         ])
     else:
         result = youtube_and_drive(video_path, script)
@@ -72,6 +109,7 @@ def run() -> int:
             {
                 "topic": topic,
                 "script_title": script["title"],
+                "format": script.get("format", "slideshow"),
                 "duration_seconds": script["duration_seconds"],
                 **result,
             },
@@ -84,6 +122,7 @@ def run() -> int:
         _summary([
             "## Short uploaded (Private)",
             f"- **Topic:** {topic}",
+            f"- **Format:** {script.get('format', 'slideshow')}",
             f"- **Title:** {script['title']}",
             f"- **Length:** {script['duration_seconds']}s",
             f"- **Review / publish:** {result.get('studio_url', '')}",

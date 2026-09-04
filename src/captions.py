@@ -80,7 +80,7 @@ def _whisper_words(audio_path: str) -> list[tuple[float, float, str]]:
 
     model = WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8")
     segments, _ = model.transcribe(
-        audio_path, language="en", word_timestamps=True, vad_filter=True
+        audio_path, language=config.LANGUAGE, word_timestamps=True, vad_filter=True
     )
     words: list[tuple[float, float, str]] = []
     for seg in segments:

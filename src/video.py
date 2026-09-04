@@ -19,7 +19,7 @@ import datetime as _dt
 import glob
 import os
 
-from . import cards, config, presenter, util
+from . import cards, characters, config, presenter, util
 
 FPS = config.FPS
 W, H = config.WIDTH, config.HEIGHT
@@ -323,4 +323,106 @@ def render(media_items: list[dict], beats: list[dict], audio_path: str, ass_path
                                   ("bar", config.PROGRESS_BAR)) if ok) or "plain"
     print(f"[video] rendered {final.name}  ({dur:.1f}s, target {lo}-{hi}s, "
           f"fx: {fx}, {final.stat().st_size // 1024} KB){flag}")
+    return str(final)
+
+
+def _overlay_ass_turns(turns: list[dict]) -> str | None:
+    """Keyword chyron timed directly off each turn's start/end (dialogue mode
+    already knows exact timing, unlike the slideshow's estimated beat durs)."""
+    cues = [(t["start"] + 0.1, t["end"] - 0.05, (t.get("keyword") or "").strip())
+            for t in turns if (t.get("keyword") or "").strip()]
+    if not cues:
+        return None
+    header = (
+        "[Script Info]\nScriptType: v4.00+\n"
+        f"PlayResX: {W}\nPlayResY: {H}\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, "
+        "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
+        "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        "Style: KW,DejaVu Sans,58,&H00121212,&H000000FF,&H0033A8E0,&H64000000,-1,0,0,0,"
+        "100,100,1,0,3,10,0,8,60,60,120,1\n\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+    lines = [header]
+    for s, e, txt in cues:
+        if e <= s:
+            continue
+        lines.append(f"Dialogue: 0,{_ts(s)},{_ts(e)},KW,,0,0,0,,"
+                     r"{\fad(120,80)}" + txt.upper())
+    path = config.WORK / "overlays_dialogue.ass"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def render_dialogue(turns: list[dict], audio_path: str, ass_path: str,
+                    timeline: list[dict] | None = None) -> str | None:
+    """FORMAT=dialogue assembly: the animated debate panel + the same
+    captions/chyron/bar/music/sfx polish as the slideshow. Returns None (never
+    raises) if the character animation itself can't be produced, so the
+    caller falls back to the slideshow path."""
+    config.ensure_dirs()
+    speech = util.probe_duration(audio_path)
+    total = _target_total(speech)
+
+    chars_video = characters.render(turns, total)
+    if not chars_video:
+        return None
+
+    date = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
+    final = config.OUT / f"short_{date}.mp4"
+
+    ass_chain = f"ass='{_ass_arg(ass_path)}'"
+    overlay = _overlay_ass_turns(turns)
+    if overlay:
+        ass_chain += f",ass='{_ass_arg(overlay)}'"
+    pbar = (f",drawbox=x=0:y=ih-8:w='iw*t/{total:.3f}':h=8:color=0xE0A82E@0.9:thickness=fill"
+            if config.PROGRESS_BAR else "")
+    vfilter = f"[0:v]tpad=stop_mode=clone:stop_duration={_TAIL_PAD},{ass_chain}{pbar}[v]"
+
+    cut_times = [t["start"] for t in turns[1:] if 0.3 < t["start"] < total - 0.3]
+    music = _music_bed(total)
+    sfx = _sfx_track(cut_times, total) if config.SFX else None
+    inputs = ["-i", chars_video, "-i", audio_path]
+    a_src = ["[1:a]aformat=sample_rates=48000:channel_layouts=stereo[voice]"]
+    mix_labels = ["[voice]"]
+    idx = 2
+    if music:
+        inputs += ["-i", music]
+        a_src.append(f"[{idx}:a]aformat=sample_rates=48000:channel_layouts=stereo,"
+                     f"volume={config.MUSIC_VOLUME}[music]")
+        mix_labels.append("[music]"); idx += 1
+    if sfx:
+        inputs += ["-i", sfx]
+        a_src.append(f"[{idx}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=0.85[sfx]")
+        mix_labels.append("[sfx]"); idx += 1
+    if len(mix_labels) > 1:
+        a_src.append(f"{''.join(mix_labels)}amix=inputs={len(mix_labels)}:"
+                     f"duration=longest:normalize=0:dropout_transition=0,apad[a]")
+    else:
+        a_src = ["[1:a]apad[a]"]
+
+    filt = f"{vfilter};" + ";".join(a_src)
+    enc = ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+           "-c:a", "aac", "-b:a", "192k", "-r", str(FPS), "-t", f"{total:.3f}",
+           "-movflags", "+faststart", "-y", str(final)]
+    try:
+        util.run(["ffmpeg", *inputs, "-filter_complex", filt,
+                  "-map", "[v]", "-map", "[a]", *enc])
+    except SystemExit:
+        print("[video] dialogue filtergraph failed - captions + voice only")
+        safe = (f"[0:v]tpad=stop_mode=clone:stop_duration={_TAIL_PAD},"
+                f"ass='{_ass_arg(ass_path)}'[v];[1:a]apad[a]")
+        try:
+            util.run(["ffmpeg", "-i", chars_video, "-i", audio_path, "-filter_complex", safe,
+                      "-map", "[v]", "-map", "[a]", *enc])
+        except SystemExit:
+            print("[video] dialogue assembly failed entirely")
+            return None
+
+    dur = util.probe_duration(str(final))
+    lo, hi = config.TARGET_SECONDS_MIN, config.TARGET_SECONDS_MAX
+    flag = "" if lo - 1 <= dur <= hi + 1 else "  <-- OUT OF RANGE"
+    print(f"[video] rendered {final.name} (dialogue, {dur:.1f}s, target {lo}-{hi}s, "
+          f"{final.stat().st_size // 1024} KB){flag}")
     return str(final)

@@ -89,6 +89,18 @@ _PROMPT = textwrap.dedent(
 )
 
 
+def _lang_rule() -> str:
+    if config.LANGUAGE == "en":
+        return ""
+    return (
+        f"\n    - LANGUAGE: write every spoken line (hook/beats/cta, or the "
+        f"dialogue turns) in natural, fluent {config.LANGUAGE_NAME}, using "
+        f"plain Latin/Roman script (no native script). Keep \"visual\" and "
+        f"\"keyword\" fields, the title, description, tags and hashtags in "
+        f"English so search and image lookup still work."
+    )
+
+
 def _prompt_for(topic: str, seo_terms: list[str] | None = None) -> str:
     seo = "; ".join(seo_terms or []) or "(none - skip this rule)"
     return _PROMPT.format(
@@ -101,7 +113,7 @@ def _prompt_for(topic: str, seo_terms: list[str] | None = None) -> str:
         seconds=config.TARGET_SECONDS,
         beats_lo=_MIN_BEATS,
         beats_hi=_MAX_BEATS,
-    )
+    ) + _lang_rule()
 
 
 def _extract_json(text: str) -> dict:
@@ -197,10 +209,9 @@ def _groq_body(model: str, prompt: str, effort: str | None) -> dict:
     return body
 
 
-def _via_groq(topic: str, seo_terms=None) -> dict | None:
+def _via_groq(prompt: str) -> dict | None:
     if not config.GROQ_API_KEY:
         return None
-    prompt = _prompt_for(topic, seo_terms)
     headers = {"Authorization": f"Bearer {config.GROQ_API_KEY}", **UA}
     for model in _groq_models()[:5]:
         # reasoning models: some want "low", some only accept "none"/"default";
@@ -236,14 +247,14 @@ def _via_groq(topic: str, seo_terms=None) -> dict | None:
     return None
 
 
-def _via_pollinations(topic: str, seo_terms=None) -> dict | None:
+def _via_pollinations(prompt: str) -> dict | None:
     # The legacy text API is now paywalled (402) for everyone; kept as one
     # quick attempt in case that changes, but no longer worth a retry loop.
     try:
         r = requests.post(
             "https://text.pollinations.ai/", headers=UA, timeout=45,
             json={
-                "messages": [{"role": "user", "content": _prompt_for(topic, seo_terms)}],
+                "messages": [{"role": "user", "content": prompt}],
                 "jsonMode": True, "private": True, "referrer": "yt-shorts-agent",
             },
         )
@@ -310,10 +321,9 @@ def _gemini_call(api_version: str, model: str, prompt: str) -> dict | None:
     return _extract_json("".join(p.get("text", "") for p in parts))
 
 
-def _via_gemini(topic: str, seo_terms=None) -> dict | None:
+def _via_gemini(prompt: str) -> dict | None:
     if not config.GEMINI_API_KEY:
         return None
-    prompt = _prompt_for(topic, seo_terms)
     for api_version in ("v1beta", "v1"):
         # hardcoded current ids first; discovery only appended (it returns
         # retired ids that 404 for new keys).
@@ -478,16 +488,18 @@ def _normalise(topic: str, data: dict, seo_terms: list[str] | None = None) -> di
     }
 
 
-def build(topic: str, seo_terms: list[str] | None = None) -> dict:
-    # Each provider self-skips if its key is unset, so this is just priority
-    # order: Groq -> Gemini -> Pollinations -> Wikipedia template.
-    raw: dict | None = None
-    source = "template"
+def _generate(prompt: str) -> tuple[dict | None, str]:
+    """Try Groq -> Gemini -> Pollinations (each self-skips if unkeyed); return
+    (raw_json_or_None, source_name)."""
     for name, fn in (("groq", _via_groq), ("gemini", _via_gemini), ("pollinations", _via_pollinations)):
-        raw = fn(topic, seo_terms)
+        raw = fn(prompt)
         if raw:
-            source = name
-            break
+            return raw, name
+    return None, "template"
+
+
+def build(topic: str, seo_terms: list[str] | None = None) -> dict:
+    raw, source = _generate(_prompt_for(topic, seo_terms))
 
     script: dict | None = None
     if raw:
@@ -510,4 +522,182 @@ def build(topic: str, seo_terms: list[str] | None = None) -> dict:
         f"({script['word_count']} words ~ target {_TARGET_WORDS}, "
         f"{len(script['beats'])} beats)"
     )
+    return script
+
+
+# =====================================================================
+#  DIALOGUE mode: two hosts (skeptic + expert) debate the topic instead of
+#  one narrator over a slideshow. Same writer chain, a different prompt/schema.
+# =====================================================================
+_MIN_TURNS, _MAX_TURNS = 10, 16
+
+_DIALOGUE_SCHEMA_HINT = (
+    '{"title": str<=70, '
+    f'"turns": [{{"speaker": "skeptic"|"expert", "say": str, "keyword": str}}] '
+    f'({_MIN_TURNS}-{_MAX_TURNS} items, MUST start with "skeptic" and strictly '
+    'alternate), "timeline": [{"year": int, "label": str}] (3-6 items, or []), '
+    '"cta": str, "description": str, "tags": [str], "hashtags": [str]}'
+)
+
+_DIALOGUE_PROMPT = textwrap.dedent(
+    """\
+    You write a two-host dialogue for a faceless YouTube Shorts channel about
+    HISTORY and historical geopolitics: ancient and medieval Greece, Rome,
+    Persia, Egypt, Byzantium, the Islamic world, the Normans, the Mongols, the
+    Ottomans, the British Empire, the World Wars and the Cold War treated as
+    history. NOT current partisan politics.
+
+    Two recurring hosts, always in this order per exchange:
+      - "skeptic": curious, a little contrarian, voices the popular myth or
+        asks the obvious question, reacts with disbelief or pushback.
+      - "expert": warm, knowledgeable, corrects the myth with the real history
+        and delivers the payoff. Never invents numbers.
+
+    Topic: "{topic}"
+
+    Rules:
+    - Pick ONE surprising, lesser-known angle - not a textbook overview.
+    - {turns_lo} to {turns_hi} turns, STRICTLY alternating starting with
+      skeptic. Each turn is ONE short spoken line, 8 to 16 words, that sounds
+      like real conversation - reactions, follow-up questions, "wait, so...",
+      not narration. Historically accurate; correct any myth as the payoff.
+    - HARD REQUIREMENT: all turns combined are {words_lo} to {words_hi} words
+      TOTAL, aim for {words_target}. Count as you go - do not stop early.
+    - For each turn give "keyword": the single most important date, name or
+      place in that line, 1-3 words, for an on-screen caption (can be "").
+    - "timeline": 3-6 {{year, label}} points if the topic has a clear
+      chronology (year is an integer, negative for BC), otherwise [].
+    - "cta": the expert's closing line, e.g. "Follow for more history myths
+      busted."
+    - Title <= 70 chars, curiosity gap, front-loaded keyword, no ALL CAPS, no
+      clickbait lie. Plain hyphens only, no fancy dashes.
+    - SEO: work ONE of these real YouTube search phrases naturally into the
+      title or the first line of the description if any fit: {seo}
+    - description: first line is a keyword-rich one-sentence hook.
+
+    Output ONLY minified JSON, no code fences, matching:
+    {schema}
+    """
+)
+
+
+def _dialogue_prompt_for(topic: str, seo_terms: list[str] | None = None) -> str:
+    seo = "; ".join(seo_terms or []) or "(none - skip this rule)"
+    return _DIALOGUE_PROMPT.format(
+        topic=topic, schema=_DIALOGUE_SCHEMA_HINT, seo=seo,
+        words_lo=_WORDS_LO, words_hi=_WORDS_HI, words_target=_TARGET_WORDS,
+        turns_lo=_MIN_TURNS, turns_hi=_MAX_TURNS,
+    ) + _lang_rule()
+
+
+def _template_dialogue(topic: str) -> dict:
+    extract = _wikipedia_summary(topic)
+    facts = [s.strip() for s in re.split(r"(?<=[.!?])\s+", extract) if len(s.strip()) > 20][:6]
+    if not facts:
+        facts = [f"there is more to {topic} than the textbook version.",
+                  f"the records on {topic} are stranger than the legend."]
+    turns: list[dict] = []
+    prompts = [
+        "Wait, is it true that {t}?", "Hold on, everyone says {t} - is that right?",
+        "So {t}, but why does that even matter?", "That sounds made up. Did that really happen?",
+    ]
+    replies_pool = _TEMPLATE_FILLER
+    for i, fact in enumerate(facts):
+        short = " ".join(fact.split()[:16]).rstrip(",.;:") or fact
+        turns.append({"speaker": "skeptic",
+                      "say": prompts[i % len(prompts)].format(t=short.rstrip(".").lower()),
+                      "keyword": ""})
+        turns.append({"speaker": "expert", "say": fact, "keyword": topic[:24]})
+    while len(turns) < _MIN_TURNS:
+        turns.append({"speaker": "skeptic" if len(turns) % 2 == 0 else "expert",
+                      "say": replies_pool[len(turns) % len(replies_pool)], "keyword": ""})
+    return {
+        "title": f"The untold story of {topic}"[:70],
+        "turns": turns[:_MAX_TURNS],
+        "timeline": [],
+        "cta": "Follow for more history myths busted.",
+        "description": f"A surprising look at {topic}.",
+        "tags": list(_HISTORY_TAGS),
+        "hashtags": list(_HISTORY_HASHTAGS),
+    }
+
+
+def _normalise_dialogue(topic: str, data: dict, seo_terms: list[str] | None = None) -> dict:
+    turns: list[dict] = []
+    for t in data.get("turns", []):
+        say = _fix_unicode(str(t.get("say", "")).strip())
+        keyword = _fix_unicode(str(t.get("keyword", "")).strip())[:28]
+        if say:
+            turns.append({"say": say, "keyword": keyword})
+    if len(turns) < 4:
+        raise ValueError("dialogue has too few usable turns")
+
+    # trust the ORDER, enforce strict alternation starting with skeptic - more
+    # robust than trusting the model's own speaker labels
+    speaker = "skeptic"
+    for t in turns:
+        t["speaker"] = speaker
+        speaker = "expert" if speaker == "skeptic" else "skeptic"
+
+    cta = _fix_unicode(str(data.get("cta", "")).strip()) or "Follow for more history myths busted."
+    if cta.strip().lower() not in turns[-1]["say"].strip().lower():
+        turns.append({"speaker": "expert" if turns[-1]["speaker"] == "skeptic" else "skeptic",
+                      "say": cta, "keyword": ""})
+
+    narration = re.sub(r"\s+", " ", " ".join(t["say"] for t in turns)).strip()
+    hook = turns[0]["say"]
+
+    seen: set[str] = set()
+    tags: list[str] = []
+    for t in (list(data.get("tags", [])) + list(seo_terms or []) + _HISTORY_TAGS):
+        t = _fix_unicode(str(t).strip().lstrip("#"))
+        if t and t.lower() not in seen and len(t) <= 60:
+            seen.add(t.lower())
+            tags.append(t)
+    tags = tags[:15]
+
+    hashtags = [h if str(h).startswith("#") else f"#{h}" for h in data.get("hashtags", [])]
+    for default in _HISTORY_HASHTAGS:
+        if default not in [h.lower() for h in hashtags]:
+            hashtags.append(default)
+    hashtags = [_fix_unicode(h) for h in hashtags][:8]
+
+    description = _fix_unicode(str(data.get("description", "")).strip())
+    description = f"{description}\n\n{cta}\n{' '.join(hashtags)}".strip()
+
+    title = _fix_unicode(str(data.get("title", "")).strip()) or topic
+    return {
+        "topic": topic,
+        "title": title[:100],
+        "hook": hook,
+        "turns": turns,
+        "timeline": _clean_timeline(data.get("timeline")),
+        "cta": cta,
+        "narration": narration,
+        "description": description,
+        "tags": tags,
+        "hashtags": hashtags,
+        "word_count": len(narration.split()),
+        "target_seconds": config.TARGET_SECONDS,
+        "format": "dialogue",
+    }
+
+
+def build_dialogue(topic: str, seo_terms: list[str] | None = None) -> dict:
+    raw, source = _generate(_dialogue_prompt_for(topic, seo_terms))
+
+    script: dict | None = None
+    if raw:
+        try:
+            script = _normalise_dialogue(topic, raw, seo_terms)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[script] dialogue {source} output rejected ({exc}); using template")
+            raw = None
+    if not raw:
+        script = _normalise_dialogue(topic, _template_dialogue(topic), seo_terms)
+        source = "template"
+
+    assert script is not None
+    print(f"[script] dialogue via {source}: {script['title']!r} "
+          f"({script['word_count']} words, {len(script['turns'])} turns)")
     return script
