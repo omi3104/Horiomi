@@ -1,13 +1,14 @@
 """Fetch one on-topic visual per script beat, tuned for a HISTORY channel.
 
-Per beat:
-  * "scene" beats (an action described)  -> AI image generated FROM the beat's
-    own sentence + keyword + era style. Always on-topic. This is ~80% of beats.
-  * "anchor" beats (visual says portrait / map / painting / coin / monument,
-    or the keyword is a person's name) -> try a REAL image first (Wikimedia
-    art, Met Museum, the topic's own Wikipedia pictures), fall back to AI.
-  * generic STOCK (Pexels / Pixabay / Openverse) is capped at ~20% of beats
-    and only used when both AI and real fail.
+Per beat, in order:
+  1. a REAL picture from the topic's OWN Wikipedia page whose filename matches
+     this beat (the actual portrait / battle painting / map). Unique per topic,
+     so the opening images stop repeating across videos.
+  2. "anchor" beats (portrait / map / painting / person-name keyword) -> other
+     real sources (Wikimedia art, Met Museum).
+  3. an AI image built from the beat's own sentence, with a per-TOPIC seed and
+     a subject-forward prompt (not a generic "dramatic history painting").
+  4. generic STOCK (Pexels / Pixabay), capped at ~25% of beats.
 
 Real / stock candidates pass a keyword-overlap relevance gate so a "siege of
 Baghdad" beat cannot land on a stock motorway clip. Result lists are shuffled
@@ -21,6 +22,7 @@ import random
 import re
 import time
 import urllib.parse
+import zlib
 
 import requests
 
@@ -215,22 +217,26 @@ def _wikimedia_video(q: str, stem: str) -> str | None:
     return _commons_search(q, stem, want="video")
 
 
-def _topic_wikipedia_images(topic: str) -> list[str]:
-    """Lead image + images used in the topic's own Wikipedia article - the most
-    on-topic pictures available. Returned as a URL pool for later beats."""
-    urls: list[str] = []
+def _topic_wikipedia_images(topic: str) -> list[tuple[str, str]]:
+    """The real pictures ON the topic's own Wikipedia page(s) - portraits of the
+    key figures, the famous painting of the event, maps. Returns (url, name) so
+    each beat can pick the one whose filename best matches it. Unique per topic,
+    so the opening images stop repeating across videos."""
+    out: list[tuple[str, str]] = []
     try:
         s = requests.get(
             "https://en.wikipedia.org/w/api.php",
             params={"action": "query", "list": "search", "srsearch": topic,
-                    "srlimit": 1, "format": "json"},
+                    "srlimit": 3, "format": "json"},
             headers=UA, timeout=20,
         ).json()
-        title = s["query"]["search"][0]["title"]
+        titles = [h["title"] for h in s.get("query", {}).get("search", [])][:2]
+        if not titles:
+            return out
         r = requests.get(
             "https://en.wikipedia.org/w/api.php",
-            params={"action": "query", "titles": title, "format": "json",
-                    "generator": "images", "gimlimit": 30,
+            params={"action": "query", "titles": "|".join(titles), "format": "json",
+                    "generator": "images", "gimlimit": 60,
                     "prop": "imageinfo", "iiprop": "url|size", "iiurlwidth": config.WIDTH},
             headers=UA, timeout=25,
         ).json()
@@ -238,23 +244,47 @@ def _topic_wikipedia_images(topic: str) -> list[str]:
                 "question_book", "folder", "loudspeaker", "red_pog", "increase",
                 "decrease", "symbol", "flag_of", "coat_of_arms", "map_marker",
                 "gnome-", "crystal_", "nuvola", "portal-", "star_full",
-                "location_dot", "blank_", "disambig", "wiktionary")
+                "location_dot", "blank_", "disambig", "wiktionary", "ogg", "spoken")
+        seen: set[str] = set()
         for p in r.get("query", {}).get("pages", {}).values():
-            name = p.get("title", "")
+            name = p.get("title", "").replace("File:", "")
             low = name.lower()
-            if any(x in low for x in junk):
+            if low in seen or any(x in low for x in junk):
                 continue
-            # must actually relate to the topic - navbox/template images leak in
-            if not _relevant(topic, name.replace("File:", "").replace("_", " ")):
+            if not _relevant(topic, name.replace("_", " ")):
                 continue
             info = (p.get("imageinfo") or [{}])[0]
             u = info.get("thumburl") or info.get("url", "")
-            if u and (info.get("width") or 0) >= 300:
-                urls.append(u.split("?utm", 1)[0])
+            if u and (info.get("width") or 0) >= 350:
+                seen.add(low)
+                out.append((u.split("?utm", 1)[0], name.replace("_", " ")))
     except Exception as exc:  # noqa: BLE001
         print(f"[media] wikipedia topic images failed: {exc}")
-    print(f"[media] {len(urls)} on-topic Wikipedia images for {topic!r}")
-    return urls
+    print(f"[media] {len(out)} real Wikipedia images for {topic!r}")
+    return out
+
+
+def _pool_pick(pool: list[tuple[str, str]], used: set[str], beat: dict, stem: str) -> str | None:
+    """Best unused image from the topic pool for this beat, matched on filename."""
+    want = _kw(f"{beat.get('visual','')} {beat.get('keyword','')} {beat.get('say','')}")
+    scored = []
+    for url, name in pool:
+        if url in used:
+            continue
+        overlap = len(want & _kw(name))
+        scored.append((overlap, url))
+    if not scored:
+        return None
+    scored.sort(reverse=True)
+    best_overlap, best_url = scored[0]
+    # take a matched image (>=2 shared words), or the lead image for beat 0
+    if best_overlap >= 2 or (stem.endswith("00") and best_overlap >= 1):
+        got = _download(best_url, stem, "image")
+        if got:
+            used.add(best_url)
+            print(f"[media]   -> wikipedia_topic_image (match {best_overlap})")
+            return got
+    return None
 
 
 def _met_museum(q: str, stem: str) -> str | None:
@@ -316,21 +346,27 @@ _GEMINI_IMAGE_MODELS = (
 )
 
 
+def _seed_for(topic: str, i: int) -> int:
+    """Per-topic, per-beat seed - so beat 0 is not seed 1000 in EVERY video."""
+    return (zlib.crc32(f"{topic}|{i}".encode()) % 2_000_000) + 1
+
+
 def _ai_prompt(beat: dict, topic: str) -> str:
+    # subject-forward and short, so the model renders THIS scene, not a generic
+    # "dramatic history painting". Style is a light suffix only.
     vis = (beat.get("visual") or "").strip()
     say = (beat.get("say") or "").strip()
     kw = (beat.get("keyword") or "").strip()
     subject = vis or say or topic
-    ctx = f" Context: {topic}"
-    if kw and kw.lower() not in subject.lower():
-        ctx += f", {kw}"
+    bits = [subject]
+    if kw and kw.lower() not in subject.lower() and not kw.replace(",", "").isdigit():
+        bits.append(kw)
     if say and say.lower() != subject.lower():
-        ctx += f". Scene: {say}"
-    return (f"{subject}.{ctx}. {_era_style(topic)}. "
-            f"Dramatic cinematic history illustration, painterly, highly detailed, "
-            f"period-accurate clothing and architecture, atmospheric light, "
-            f"vertical 9:16 composition, no text, no captions, no watermark, "
-            f"no modern objects, no photo border")
+        bits.append(say)
+    core = ". ".join(bits)
+    return (f"{core}. {topic}, {_era_style(topic)}. "
+            f"realistic historical painting, period-accurate, detailed faces, "
+            f"cinematic light, vertical, no text no watermark")
 
 
 def _gemini_image(prompt: str, stem: str) -> str | None:
@@ -359,9 +395,10 @@ def _gemini_image(prompt: str, stem: str) -> str | None:
 
 
 def _pollinations(prompt: str, stem: str, seed: int) -> str | None:
-    q = urllib.parse.quote(prompt[:340])
+    q = urllib.parse.quote(prompt[:300])
     base = (f"https://image.pollinations.ai/prompt/{q}"
-            f"?width={config.WIDTH}&height={config.HEIGHT}&nologo=true&seed={seed}")
+            f"?width={config.WIDTH}&height={config.HEIGHT}&nologo=true"
+            f"&enhance=true&seed={seed}")
     for model in ("flux", "turbo", ""):
         url = base + (f"&model={model}" if model else "")
         for attempt in range(2):
@@ -370,6 +407,18 @@ def _pollinations(prompt: str, stem: str, seed: int) -> str | None:
                 return got
             time.sleep(3 + attempt * 4)
     return None
+
+
+def _ai_image(beat: dict, topic: str, stem: str, seed: int) -> str | None:
+    prompt = _ai_prompt(beat, topic)
+    got = _gemini_image(prompt, stem)
+    if got:
+        print("[media]   -> AI image (gemini)")
+        return got
+    got = _pollinations(prompt, stem, seed)
+    if got:
+        print(f"[media]   -> AI image (pollinations, seed {seed})")
+    return got
 
 
 # =====================================================================
@@ -490,39 +539,25 @@ def _needs_real(beat: dict) -> bool:
     if _ANCHOR_HINT.search(vis):
         return True
     kw = (beat.get("keyword") or "").strip()
-    # a person's name (>=2 capitalised words) -> use a real portrait if one exists
     caps = [w for w in kw.split() if w[:1].isupper()]
     return len(caps) >= 2
-
-
-def _ai_image(beat: dict, topic: str, stem: str, seed: int) -> str | None:
-    prompt = _ai_prompt(beat, topic)
-    return _gemini_image(prompt, stem) or _pollinations(prompt, stem, seed)
 
 
 def fetch_for_beats(beats: list[dict], topic: str = "") -> list[dict]:
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     topic_pool = _topic_wikipedia_images(topic) if topic else []
-    tp_i = 0
-    stock_cap = max(1, round(len(beats) * 0.2))   # ~20% of beats may use stock
+    pool_used: set[str] = set()
+    stock_cap = max(1, round(len(beats) * 0.25))
     stock_used = 0
-    real = list(_REAL_PROVIDERS)
     stock = list(_STOCK_PROVIDERS) + (list(_VIDEO_PROVIDERS) if config.PREFER_VIDEO else [])
 
     def _try_real(beat, queries, stem):
-        nonlocal tp_i
         for q in queries:
-            for provider in real:
+            for provider in _REAL_PROVIDERS:
                 got = provider(q, stem)
                 if got:
                     print(f"[media]   -> {provider.__name__} ({q!r})")
                     return got
-        while tp_i < len(topic_pool):
-            u = topic_pool[tp_i]; tp_i += 1
-            got = _download(u, stem, "image")
-            if got:
-                print("[media]   -> wikipedia_topic_image")
-                return got
         return None
 
     def _try_stock(queries, stem):
@@ -548,22 +583,26 @@ def fetch_for_beats(beats: list[dict], topic: str = "") -> list[dict]:
         print(f"[media] beat {i} ({'anchor' if anchor else 'scene'}): {queries[:2]}")
 
         path = kindtag = None
-        seq = (["real", "ai", "stock"] if anchor else ["ai", "real", "stock"])
-        for step in seq:
-            if step == "ai":
-                path = _ai_image(beat, topic, stem, seed=1000 + i * 7)
+        # 1. a REAL Wikipedia picture of THIS topic that matches the beat -
+        #    unique per video, so opening images stop repeating
+        got = _pool_pick(topic_pool, pool_used, beat, stem)
+        if got:
+            path, kindtag = got, "real"
+
+        if not path:
+            seq = (["real", "ai", "stock"] if anchor else ["ai", "real", "stock"])
+            for step in seq:
+                if step == "ai":
+                    path = _ai_image(beat, topic, stem, _seed_for(topic, i))
+                    kindtag = "ai" if path else kindtag
+                elif step == "real":
+                    path = _try_real(beat, queries, stem)
+                    kindtag = "real" if path else kindtag
+                else:
+                    path = _try_stock(queries, stem)
+                    kindtag = "stock" if path else kindtag
                 if path:
-                    print("[media]   -> AI image"); kindtag = "ai"
-            elif step == "real":
-                path = _try_real(beat, queries, stem)
-                if path:
-                    kindtag = "real"
-            else:
-                path = _try_stock(queries, stem)
-                if path:
-                    kindtag = "stock"
-            if path:
-                break
+                    break
 
         if path:
             src_mix[kindtag] += 1
