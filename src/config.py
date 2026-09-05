@@ -98,10 +98,10 @@ GEO = get("GEO", "US")
 
 # --- format: slideshow (proven, default) vs dialogue (experimental) -------
 # dialogue = two cartoon hosts (skeptic + expert) debating the topic instead
-# of an image-per-beat slideshow. Opt-in: the daily cron stays on slideshow
-# until you set this. pipeline.py auto-falls-back to slideshow if the
-# dialogue render errors, so a bad day never loses the upload.
-FORMAT = get("FORMAT", "slideshow").lower()   # slideshow | dialogue
+# of an image-per-beat slideshow. This is now the default for the daily cron.
+# pipeline.py auto-falls-back to slideshow if the dialogue render errors, so
+# a bad day never loses the upload. Set FORMAT=slideshow to go back.
+FORMAT = get("FORMAT", "dialogue").lower()   # slideshow | dialogue
 
 # --- dialogue-mode voices + characters -------------------------------
 _SKEPTIC_VOICES = {"en": "en-US-AriaNeural", "ur": "ur-PK-UzmaNeural"}

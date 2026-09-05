@@ -77,10 +77,12 @@ jobs:
           TARGET_SECONDS_MAX: ${{ vars.TARGET_SECONDS_MAX || '80' }}
           TARGET_SECONDS: ${{ vars.TARGET_SECONDS }}
           TTS_RATE: ${{ vars.TTS_RATE || '8' }}
-          # format: slideshow (default) or dialogue (experimental two-host
-          # animated debate). pipeline.py auto-falls-back to slideshow if
-          # dialogue mode errors, so this is safe to try.
-          FORMAT: ${{ github.event.inputs.format || vars.FORMAT || 'slideshow' }}
+          # format: dialogue (two-host animated debate) is now the default for
+          # the daily cron - pipeline.py auto-falls-back to slideshow for that
+          # run if dialogue mode errors, so this can't break the daily upload.
+          # Override with a repo Variable FORMAT=slideshow to go back, or pick
+          # either in the Run workflow dropdown for a one-off.
+          FORMAT: ${{ github.event.inputs.format || vars.FORMAT || 'dialogue' }}
           LANGUAGE: ${{ vars.LANGUAGE || 'en' }}
           CAPTION_SCRIPT: ${{ vars.CAPTION_SCRIPT || 'roman' }}
           SKEPTIC_VOICE: ${{ vars.SKEPTIC_VOICE }}
