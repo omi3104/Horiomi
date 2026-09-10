@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy - Horiomi</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 2.2rem 1.15rem 4rem;
+    background: #0b1118; color: #e7e9ee;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 44rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .3rem; }
+  h2 { font-size: 1.12rem; margin: 2rem 0 .5rem; color: #e0a82e; }
+  .meta { color: #8b95a3; font-size: .9rem; margin-bottom: 1.4rem; }
+  a { color: #e0a82e; }
+  code { background: #1a222d; padding: .1rem .35rem; border-radius: .25rem; }
+  ul { padding-left: 1.2rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Horiomi &middot; last updated 10 September 2026</p>
+
+  <p>
+    Horiomi is a personal, self-hosted automation that generates short history
+    videos and uploads them to <strong>its operator's own YouTube channel</strong>.
+    It runs as a scheduled GitHub Actions job. It has no user accounts, no
+    website sign-in, and no visitors other than its single operator.
+  </p>
+
+  <h2>What Google data it accesses</h2>
+  <ul>
+    <li>
+      A single OAuth scope: <code>https://www.googleapis.com/auth/youtube.upload</code>,
+      used only to upload finished video files to the account owner's YouTube
+      channel via the YouTube Data API v3.
+    </li>
+    <li>No other Google account data is read, requested, or received.</li>
+  </ul>
+
+  <h2>What it stores</h2>
+  <ul>
+    <li>
+      One OAuth refresh token, held as an encrypted GitHub Actions secret so the
+      scheduled job can authenticate. It is never displayed or transmitted
+      anywhere except to Google's token endpoint.
+    </li>
+    <li>
+      No personal data, viewer data, analytics, cookies, or tracking of any
+      kind is collected or retained.
+    </li>
+  </ul>
+
+  <h2>Sharing</h2>
+  <p>
+    Nothing is shared, sold, or disclosed to any third party. Data obtained
+    through Google APIs is used solely for the upload function described above,
+    in line with the
+    <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
+    including its Limited Use requirements.
+  </p>
+
+  <h2>Data removal</h2>
+  <p>
+    The operator can revoke the app's access at any time at
+    <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>,
+    which immediately and permanently ends all access.
+  </p>
+
+  <h2>Contact</h2>
+  <p>Questions: <a href="mailto:mughalat310@gmail.com">mughalat310@gmail.com</a></p>
+</main>
+</body>
+</html>
