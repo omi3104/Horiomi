@@ -96,12 +96,22 @@ _DEFAULT_VOICES = {"en": "en-US-AndrewNeural", "ur": "ur-PK-AsadNeural"}
 VOICE = get("VOICE") or _DEFAULT_VOICES.get(LANGUAGE, _DEFAULT_VOICES["en"])
 GEO = get("GEO", "US")
 
-# --- format: slideshow (proven, default) vs dialogue (experimental) -------
-# dialogue = two cartoon hosts (skeptic + expert) debating the topic instead
-# of an image-per-beat slideshow. This is now the default for the daily cron.
-# pipeline.py auto-falls-back to slideshow if the dialogue render errors, so
-# a bad day never loses the upload. Set FORMAT=slideshow to go back.
-FORMAT = get("FORMAT", "dialogue").lower()   # slideshow | dialogue
+# --- format: map (default) | slideshow (proven) | dialogue (experimental) --
+# map      = an animated sequence of political-map stills (maps.py); how
+#            borders / empires moved over time. This is the daily default.
+# slideshow= one relevant image per beat with Ken-Burns motion.
+# dialogue = two cartoon hosts (skeptic + expert) debating the topic.
+# pipeline.py auto-falls-back to slideshow if map/dialogue errors, so a bad
+# day never loses the upload. Set FORMAT=slideshow to force the safe path.
+FORMAT = get("FORMAT", "map").lower()   # map | slideshow | dialogue
+
+# --- map-mode look (maps.py, Pillow-only renderer) ------------------------
+# Border snapshots come from github.com/aourednik/historical-basemaps.
+MAP_DATA_BASE = get(
+    "MAP_DATA_BASE",
+    "https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/",
+)
+MAP_SUPERSAMPLE = get_int("MAP_SUPERSAMPLE", 2)   # render Nx then downscale
 
 # --- dialogue-mode voices + characters -------------------------------
 _SKEPTIC_VOICES = {"en": "en-US-AriaNeural", "ur": "ur-PK-UzmaNeural"}

@@ -5,9 +5,10 @@
 
 Run:  python -m src.pipeline
 Env:  DRY_RUN=1  builds the video but skips the upload.
-      FORMAT=dialogue tries the two-host animated debate; if anything in that
-      path raises, this falls back to the proven slideshow format for the
-      SAME topic, so a bad day never loses the upload.
+      FORMAT=map (default) draws an animated sequence of political maps;
+      FORMAT=dialogue does the two-host debate; FORMAT=slideshow is the
+      image montage. If the chosen format's build raises, this falls back to
+      slideshow for the SAME topic, so a bad day never loses the upload.
 """
 from __future__ import annotations
 
@@ -17,7 +18,8 @@ import os
 import sys
 import traceback
 
-from . import captions, config, media, script_gen, state, tts, trends, util, video
+from . import (captions, config, maps, media, script_gen, state, tts, trends,
+               util, video)
 
 
 def _summary(lines: list[str]) -> None:
@@ -60,12 +62,29 @@ def _build_dialogue(topic: str, picked: dict) -> tuple[dict, str]:
     return script, video_path
 
 
+def _build_map(topic: str, picked: dict) -> tuple[dict, str]:
+    script = script_gen.build_map(topic, picked.get("seo"))
+    media_items = maps.render_beats(script["beats"], topic)
+    if not media_items:
+        raise RuntimeError("map render produced no frames")
+    audio, _speech_secs, spoken = tts.synthesize(script["narration"])
+    script["narration_spoken"] = spoken
+    ass = captions.build(audio, spoken)
+    video_path = video.render(media_items, script["beats"], audio, ass,
+                              script.get("timeline"),
+                              hook=script.get("hook", ""), cta=script.get("cta", ""))
+    script["duration_seconds"] = round(util.probe_duration(video_path), 1)
+    script.setdefault("format", "map")
+    return script, video_path
+
+
 def _build(topic: str, picked: dict) -> tuple[dict, str]:
-    if config.FORMAT == "dialogue":
+    experimental = {"map": _build_map, "dialogue": _build_dialogue}.get(config.FORMAT)
+    if experimental is not None:
         try:
-            return _build_dialogue(topic, picked)
-        except Exception:  # noqa: BLE001 - never lose the day to the experimental path
-            print("[pipeline] dialogue format failed; falling back to slideshow:")
+            return experimental(topic, picked)
+        except Exception:  # noqa: BLE001 - never lose the day to a non-slideshow path
+            print(f"[pipeline] {config.FORMAT} format failed; falling back to slideshow:")
             traceback.print_exc()
     return _build_slideshow(topic, picked)
 

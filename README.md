@@ -77,8 +77,10 @@ video/day sits well inside it.
 src/
   config.py        knobs + credential loading (nothing topic-specific)
   trends.py        pick one high-demand history topic (Wikipedia views, YouTube suggest)
-  script_gen.py    topic -> {title, hook, beats[], narration, description, tags}
-  media.py         one on-topic image per beat (Wikipedia/Wikimedia/Met/AI), relevance-gated
+  script_gen.py    topic -> {title, hook, beats[], narration, ...}  (build / build_map / build_dialogue)
+  media.py         one on-topic image per beat (Wikipedia/Wikimedia/Met/AI), relevance-gated  [slideshow]
+  maps.py          one political-map still per beat from historical-basemaps GeoJSON, Pillow-only  [map]
+  characters.py    two-host debate panel renderer  [dialogue]
   presenter.py     the recurring AI host portrait (fixed prompt + seed)
   cards.py         Pillow: intro / outro / timeline still cards
   tts.py           narration -> voice.mp3   (edge-tts)
@@ -320,23 +322,49 @@ after every build (including dry runs).
 
 ---
 
-## Dialogue mode (experimental) — two animated hosts instead of a slideshow
+## Formats: `map` (default), `slideshow`, `dialogue`
 
-Set `FORMAT=dialogue` (repo Variable, or the `format` option on **Run
-workflow**) and the short becomes a **Skeptic** and an **Expert** debating the
+Set `FORMAT` as a repo Variable, or pick it in the `format` dropdown on
+**Actions → daily-short → Run workflow**. If `map` or `dialogue` errors for
+any reason, `pipeline.py` automatically rebuilds that same day with
+`slideshow` — an experimental render never costs you the daily upload. Try a
+new format with **Run workflow → format → dry_run** first and check the
+artifact before trusting it on the cron.
+
+### `map` mode (default) — an animated political-map sequence
+
+The short becomes a run of political maps: a starting map, a few turning
+points, the end state, one takeaway — the highlighted empire/country in the
+channel amber, the rest dark, a year badge, faint graticule, vignette, plus
+the usual Ken-Burns push, karaoke captions, keyword chyron, progress bar and
+music/SFX on top.
+
+- **Borders:** world GeoJSON snapshots from the
+  [historical-basemaps](https://github.com/aourednik/historical-basemaps)
+  project (CC-BY-SA 4.0), fetched at run time and cached (`work/maps_cache/`,
+  also an Actions cache). The script writer is told which snapshot years
+  exist and anchors each beat to the nearest one.
+- **Renderer:** `src/maps.py`, **Pillow only** — no matplotlib / geopandas /
+  cartopy, nothing added to `requirements.txt`. ~1s a frame.
+- **Script:** `script_gen.build_map()` — each beat carries `year`,
+  `highlight` (polity names as an atlas would label them) and `focus` (a
+  named region to frame). `MAP_SUPERSAMPLE` (default 2) trades render time
+  for edge quality; `MAP_DATA_BASE` overrides the data mirror.
+- **v1 limits:** border snapshots are coarse (e.g. nothing between 1914 and
+  1920), the projection is a standard-parallel equirectangular (slight
+  high-latitude stretch), name matching is heuristic (an unmatched
+  `highlight` just leaves that beat's base map un-highlighted), and
+  antimeridian-crossing polygons are dropped rather than split.
+
+### `dialogue` mode — two animated hosts
+
+`FORMAT=dialogue` makes the short a **Skeptic** and an **Expert** debating the
 topic — one AI-generated portrait per host (or pin your own at
 `assets/characters/skeptic.png` / `expert.png`), an amber "speaking" glow ring
 + live waveform on whoever is talking, a subtle breathing pulse, karaoke
 captions and the keyword chyron underneath. No GPU, no paid avatar API — it's
 a speaking **indicator** animation (glow/waveform/pulse), not lip-synced mouth
-movement; see `src/characters.py` for why, and how to add real mouth-flap once
-you've seen a render and can mark where the mouth sits on your art.
-
-`FORMAT=slideshow` (default) is unchanged and proven. If dialogue mode errors
-for any reason, `pipeline.py` automatically rebuilds that day with slideshow
-instead — a bad experimental render never costs you the daily upload. Try it
-with **Actions → daily-short → Run workflow → format: dialogue → dry_run**
-first and check the artifact before trusting it on the cron.
+movement; see `src/characters.py` for why.
 
 Tune with `SKEPTIC_NAME` / `EXPERT_NAME`, `SKEPTIC_VOICE` / `EXPERT_VOICE`
 (edge-tts voice IDs), `SKEPTIC_PROMPT` / `EXPERT_PROMPT` / `*_SEED` (the AI

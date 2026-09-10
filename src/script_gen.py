@@ -701,3 +701,214 @@ def build_dialogue(topic: str, seo_terms: list[str] | None = None) -> dict:
     print(f"[script] dialogue via {source}: {script['title']!r} "
           f"({script['word_count']} words, {len(script['turns'])} turns)")
     return script
+
+
+# =====================================================================
+#  MAP mode: a narrator over an animated sequence of political-map stills
+#  (maps.py renders them). Each beat carries a year + which polity to
+#  highlight + which region to frame.
+# =====================================================================
+from . import maps as _maps  # noqa: E402  (kept local to this section)
+
+_MIN_MAP_BEATS, _MAX_MAP_BEATS = 8, 12
+
+_MAP_SCHEMA_HINT = (
+    '{"title": str<=70, "hook": str, '
+    f'"beats": [{{"say": str, "keyword": str, "year": int, '
+    f'"highlight": [str] (1-4), "focus": str}}] ({_MIN_MAP_BEATS}-{_MAX_MAP_BEATS} items), '
+    '"timeline": [{"year": int, "label": str}] (3-6 items, or []), '
+    '"cta": str, "description": str, "tags": [str], "hashtags": [str]}'
+)
+
+_MAP_PROMPT = textwrap.dedent(
+    """\
+    You write a narrator script for a faceless YouTube Shorts channel about
+    HISTORY told through MAPS: how borders, empires and territory changed over
+    time (Rome, Persia, Byzantium, the Caliphates, the Mongols, the Delhi
+    Sultanate and Mughals, the Ottomans, the European empires, the World Wars,
+    decolonisation). NOT current partisan politics.
+
+    Topic: "{topic}"
+
+    The video is an animated sequence of political maps. Each beat = ONE map
+    state. Between beats the map redraws to the new borders, so every beat must
+    move the story forward in TIME or TERRITORY.
+
+    Rules:
+    - Tell it as a clear chronological arc: a starting map, 2-3 turning points,
+      the end state, and one surprising takeaway. Lead with the twist in the
+      hook.
+    - Historically accurate. Real dates, names, places. Never invent numbers.
+    - Tone: vivid, punchy, present-tense where it helps. No markdown, no
+      emojis, no "in this video", no stage directions.
+    - HARD REQUIREMENT: narration (hook + every beat + cta) is {words_lo} to
+      {words_hi} words TOTAL, aim for {words_target} (~{seconds}s of speech).
+      Count as you go.
+    - {beats_lo} to {beats_hi} beats. Each "say" is ONE spoken sentence of
+      about 13 to 20 words with a concrete detail.
+    - For each beat also give:
+      * "year": integer, negative for BC. Anchor beats near these snapshot
+        years (the map data only exists for these): {years}. Pick the closest
+        one to the moment you are describing.
+      * "highlight": 1 to 4 polity names EXACTLY as a historical atlas would
+        label them for that year - "Roman Empire", "Byzantine Empire",
+        "Umayyad Caliphate", "Mongol Empire", "Delhi Sultanate", "Mughal
+        Empire", "Ottoman Empire", "German Reich", "Soviet Union", "British
+        Empire". The one whose story this beat tells goes first.
+      * "focus": the map frame, ONE of: {regions}. Choose the tightest region
+        that still contains the highlighted territory. Zoom in for a single
+        country, out only when the empire is huge.
+      * "keyword": the single key date/name/place, 1-3 words, shown as a
+        caption ("1071", "Manzikert", "Anatolia").
+    - "timeline": 3-6 {{year,label}} points, integer years, or [].
+    - Title <= 70 chars, curiosity gap, front-loaded keyword, no ALL CAPS, no
+      clickbait lie. Plain hyphens only.
+    - SEO: work ONE of these real search phrases into the title or first line
+      of the description if any fit: {seo}
+    - description: first line is a keyword-rich one-sentence hook.
+
+    Output ONLY minified JSON, no code fences, matching:
+    {schema}
+    """
+)
+
+
+def _map_prompt_for(topic: str, seo_terms: list[str] | None = None) -> str:
+    seo = "; ".join(seo_terms or []) or "(none - skip this rule)"
+    years = ", ".join(
+        (f"{abs(y)}BC" if y < 0 else str(y))
+        for y in _maps.SNAPSHOT_YEARS if y >= -700
+    )
+    regions = ", ".join(_maps.FOCUS_REGIONS)
+    return _MAP_PROMPT.format(
+        topic=topic, schema=_MAP_SCHEMA_HINT, seo=seo,
+        words_lo=_WORDS_LO, words_hi=_WORDS_HI, words_target=_TARGET_WORDS,
+        seconds=config.TARGET_SECONDS, beats_lo=_MIN_MAP_BEATS, beats_hi=_MAX_MAP_BEATS,
+        years=years, regions=regions,
+    ) + _lang_rule()
+
+
+def _year_from_topic(topic: str, default: int = 1900) -> int:
+    m = re.search(r"\b(\d{3,4})\s*(bc|bce)\b", topic.lower())
+    if m:
+        return -int(m.group(1))
+    m = re.search(r"\b(1\d{3}|20\d{2})\b", topic)
+    return int(m.group(1)) if m else default
+
+
+def _template_map(topic: str) -> dict:
+    extract = _wikipedia_summary(topic)
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", extract) if len(s.strip()) > 20]
+    body = sentences[:_MAX_MAP_BEATS] or [
+        f"There is a lesser-known map story behind {topic}.",
+        f"Here is how the borders actually moved around {topic}.",
+    ]
+    i = 0
+    while len(body) < _MIN_MAP_BEATS:
+        body.append(_TEMPLATE_FILLER[i % len(_TEMPLATE_FILLER)])
+        i += 1
+    yr = _year_from_topic(topic)
+    subject = re.sub(r"\b(in|the|of|how|why|and)\b", " ", topic, flags=re.I)
+    subject = re.sub(r"\s+", " ", subject).strip()[:40] or topic[:40]
+    beats = [
+        {"say": s, "keyword": str(abs(yr)) if i == 0 else topic[:18],
+         "year": yr, "highlight": [subject], "focus": ""}
+        for i, s in enumerate(body[:_MAX_MAP_BEATS])
+    ]
+    return {
+        "title": f"The map story of {topic}"[:70],
+        "hook": f"The borders around {topic} did not sit still.",
+        "beats": beats,
+        "timeline": [],
+        "cta": "Follow for a piece of history every day.",
+        "description": f"How the map changed around {topic}.",
+        "tags": list(_HISTORY_TAGS) + ["map", "history map", "borders"],
+        "hashtags": list(_HISTORY_HASHTAGS),
+    }
+
+
+def _normalise_map(topic: str, data: dict, seo_terms: list[str] | None = None) -> dict:
+    default_year = _year_from_topic(topic)
+    beats: list[dict] = []
+    for b in data.get("beats", []):
+        say = _fix_unicode(str(b.get("say", "")).strip())
+        if not say:
+            continue
+        try:
+            year = int(str(b.get("year", "")).strip().lstrip("c").strip())
+        except (TypeError, ValueError):
+            year = default_year
+        year = max(-4000, min(2025, year))
+        hl = b.get("highlight")
+        if isinstance(hl, str):
+            hl = [hl]
+        hl = [_fix_unicode(str(x).strip()) for x in (hl or []) if str(x).strip()][:4]
+        beats.append({
+            "say": say,
+            "keyword": _fix_unicode(str(b.get("keyword", "")).strip())[:28],
+            "year": year,
+            "highlight": hl,
+            "focus": _fix_unicode(str(b.get("focus", "")).strip().lower())[:40],
+        })
+    if len(beats) < 3:
+        raise ValueError("map script has too few usable beats")
+
+    hook = _fix_unicode(str(data.get("hook", "")).strip()) or beats[0]["say"]
+    cta = _fix_unicode(str(data.get("cta", "")).strip()) or "Follow for a piece of history every day."
+    narration = re.sub(r"\s+", " ", " ".join([hook] + [b["say"] for b in beats] + [cta])).strip()
+
+    seen: set[str] = set()
+    tags: list[str] = []
+    for t in (list(data.get("tags", [])) + list(seo_terms or []) + _HISTORY_TAGS
+              + ["map", "history map", "borders", "map animation"]):
+        t = _fix_unicode(str(t).strip().lstrip("#"))
+        if t and t.lower() not in seen and len(t) <= 60:
+            seen.add(t.lower())
+            tags.append(t)
+    tags = tags[:15]
+
+    hashtags = [h if str(h).startswith("#") else f"#{h}" for h in data.get("hashtags", [])]
+    for default in _HISTORY_HASHTAGS + ["#maps"]:
+        if default not in [h.lower() for h in hashtags]:
+            hashtags.append(default)
+    hashtags = [_fix_unicode(h) for h in hashtags][:8]
+
+    description = _fix_unicode(str(data.get("description", "")).strip())
+    description = f"{description}\n\n{cta}\n{' '.join(hashtags)}".strip()
+
+    title = _fix_unicode(str(data.get("title", "")).strip()) or topic
+    return {
+        "topic": topic,
+        "title": title[:100],
+        "hook": hook,
+        "beats": beats,
+        "timeline": _clean_timeline(data.get("timeline")),
+        "cta": cta,
+        "narration": narration,
+        "description": description,
+        "tags": tags,
+        "hashtags": hashtags,
+        "word_count": len(narration.split()),
+        "target_seconds": config.TARGET_SECONDS,
+        "format": "map",
+    }
+
+
+def build_map(topic: str, seo_terms: list[str] | None = None) -> dict:
+    raw, source = _generate(_map_prompt_for(topic, seo_terms))
+
+    script: dict | None = None
+    if raw:
+        try:
+            script = _normalise_map(topic, raw, seo_terms)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[script] map {source} output rejected ({exc}); using template")
+            raw = None
+    if not raw:
+        script = _normalise_map(topic, _template_map(topic), seo_terms)
+        source = "template"
+
+    assert script is not None
+    print(f"[script] map via {source}: {script['title']!r} "
+          f"({script['word_count']} words, {len(script['beats'])} map beats)")
+    return script
