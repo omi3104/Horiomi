@@ -1,10 +1,20 @@
-"""Map v1 - one flat political-map still per beat, rendered with Pillow only.
+"""Map v1.1 - an animated sequence of political-map states, rendered with
+Pillow plus a couple of plain ffmpeg calls (image-sequence -> mp4).
 
 Borders come from the historical-basemaps project
 (github.com/aourednik/historical-basemaps, CC-BY-SA 4.0): a set of world
 GeoJSON snapshots from 123000 BC to 2010. Files are fetched at run time and
 cached under work/maps_cache/. No matplotlib / geopandas / cartopy, so this
-adds nothing to requirements.txt and renders in a couple of seconds a frame.
+adds nothing to requirements.txt.
+
+Each beat's map state is composed once: several named polities get their own
+flat colour (not just "the highlighted one vs. a grey blob"), the beat's
+subject is filled in the channel amber, and a year badge is added. Beats
+after the first are not a hard cut to the next still: the previous beat's
+state is re-rendered into the SAME frame (so the two align pixel-for-pixel)
+and a short "ink spreads outward from the empire" reveal clip carries the
+map from the old state into the new one - video.py then holds on the final
+frame for the rest of the beat's speaking time (the "hold_last" media kind).
 
 A beat dict may carry, on top of the usual say / keyword:
   year      int    - snapshot to draw (negative = BC); nearest available wins
@@ -13,8 +23,10 @@ A beat dict may carry, on top of the usual say / keyword:
                      "" to auto-fit the highlighted polygons
 
 render_beats(beats, topic) -> list[dict] | None
-  [{"kind": "image", "path": "<png>"}, ...] one per beat, or None if the
-  dataset can't be reached at all (pipeline then falls back to slideshow).
+  beat 0 -> {"kind": "image", "path": ...}
+  beat 1+ -> {"kind": "video", "path": ..., "hold_last": True}
+  (video.render() already understands both.) Returns None if the dataset
+  can't be reached at all (pipeline then falls back to slideshow).
 """
 from __future__ import annotations
 
@@ -23,20 +35,24 @@ import math
 import re
 import unicodedata
 import urllib.request
+import zlib
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from . import config
+from . import config, util
 
 _DATA_BASE = config.get(
     "MAP_DATA_BASE",
     "https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/",
 )
 _CACHE = config.WORK / "maps_cache"
+_REVEAL_DIR = config.WORK / "map_reveal"
 _SS = max(1, config.get_int("MAP_SUPERSAMPLE", 2))      # render Nx then downscale
 _W, _H = config.WIDTH, config.HEIGHT
 _CW, _CH = _W * _SS, _H * _SS
+_REVEAL_FRAMES = config.get_int("MAP_REVEAL_FRAMES", 14)
+_REVEAL_FPS = 15
 
 # dark "map-history channel" palette, keyed to the channel's amber (0xE0A82E)
 _OCEAN = (11, 17, 24)
@@ -47,7 +63,18 @@ _ACCENT = (224, 168, 46)
 _ACCENT_EDGE = (255, 224, 138)
 _NEIGHBOUR = (150, 120, 66)     # other polities that share the beat's SUBJECTO
 _TEXT = (238, 240, 244)
-_SHADOW = (0, 0, 0)
+
+# other named, sizeable polities get one of these instead of flat grey, so
+# the map reads as "who's who" and not just one blob on a featureless
+# continent. Picked by a stable hash of the name, so the same empire keeps
+# the same colour across every beat of the video.
+_POLITY_PALETTE = [
+    (88, 132, 186), (98, 160, 132), (178, 110, 140), (141, 124, 188),
+    (96, 170, 170), (183, 143, 90),
+]
+_MAX_COLOURED = 6
+_MIN_COLOUR_AREA = 0.006     # fraction of canvas area a polity needs for its own colour
+_MIN_LABEL_BOX = (46, 20)    # px (final resolution) a polity needs to fit a name label
 
 _FONTS = (
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -148,6 +175,14 @@ _ALIASES = {
     "austria-hungary": ("austria-hungary", "habsburg", "austria"),
     "poland": ("poland", "polish", "polish-lithuanian", "rzeczpospolita"),
     "delhi sultanate": ("delhi sultanate", "delhi", "sultanate of delhi"),
+    "sikh empire": ("sikh", "sikhs", "punjab"),
+    "sikhs": ("sikh", "sikhs", "punjab"),
+    "durrani empire": ("durrani", "afghan", "afghanistan"),
+    "afghan durrani empire": ("durrani", "afghan", "afghanistan"),
+    "afghanistan": ("durrani", "afghan", "afghanistan"),
+    "maratha empire": ("maratha", "marathas"),
+    "maratha confederacy": ("maratha", "marathas"),
+    "marathas": ("maratha", "marathas"),
     "maurya empire": ("maurya", "mauryan"),
     "gupta empire": ("gupta",),
     "mongol empire": ("mongol", "yuan", "golden horde", "ilkhanate", "chagatai"),
@@ -206,11 +241,17 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _contains_word(haystack: str, needle: str) -> bool:
+    """Substring containment, but only at word boundaries - so a short alias
+    token like 'han' does not spuriously match inside 'afghan'."""
+    return re.search(rf"(?<![a-z0-9]){re.escape(needle)}(?![a-z0-9])", haystack) is not None
+
+
 def _wanted_terms(name: str) -> list[str]:
     n = _norm(name)
     terms = {n}
     for key, al in _ALIASES.items():
-        if n == key or n in al or any(a in n for a in al):
+        if n == key or n in al or any(_contains_word(n, a) for a in al):
             terms.update(_ALIASES[key])
             terms.add(key)
     return [t for t in terms if len(t) >= 3]
@@ -228,7 +269,7 @@ def _matches(feat: dict, wanted: list[str]) -> bool:
         return False
     for w in wanted:
         for name in fn:
-            if name == w or (len(w) >= 4 and w in name) or (len(name) >= 4 and name in fn[0] and name == w):
+            if name == w or (len(w) >= 4 and _contains_word(name, w)):
                 return True
     return False
 
@@ -351,15 +392,17 @@ def _year_label(year: int) -> str:
 
 
 def _draw_badge(img: Image.Image, text: str) -> None:
+    """Year badge, drawn at FINAL resolution (unlike the supersampled body
+    of _compose), so callers apply it after resizing/compositing."""
     d = ImageDraw.Draw(img)
-    f = _font(int(58 * _SS))
-    pad = int(26 * _SS)
+    f = _font(30)
+    pad = 13
     l, t, r, b = d.textbbox((0, 0), text, font=f)
     tw, th = r - l, b - t
-    x0, y0 = int(48 * _SS), int(60 * _SS)
+    x0, y0 = 24, 30
     d.rounded_rectangle(
         [x0, y0, x0 + tw + pad * 2, y0 + th + pad * 2],
-        radius=int(16 * _SS), fill=(6, 10, 15), outline=_ACCENT, width=max(2, _SS),
+        radius=9, fill=(6, 10, 15), outline=_ACCENT, width=2,
     )
     d.text((x0 + pad - l, y0 + pad - t), text, font=f, fill=_ACCENT)
 
@@ -373,7 +416,24 @@ def _graticule(d: ImageDraw.ImageDraw, proj: "_Proj", box) -> None:
         d.line([proj(w, lat), proj(e, lat)], fill=col, width=max(1, _SS))
 
 
-def _render_one(gj: dict, highlight: list[str], box, year: int, out: Path) -> None:
+def _polity_colour(name: str) -> tuple[int, int, int]:
+    idx = zlib.crc32(name.encode("utf-8")) % len(_POLITY_PALETTE)
+    return _POLITY_PALETTE[idx]
+
+
+def _label(d: ImageDraw.ImageDraw, text: str, cx: float, cy: float, size: int, fill) -> None:
+    f = _font(size)
+    l, t, r, b = d.textbbox((0, 0), text, font=f)
+    w, h = r - l, b - t
+    x, y = cx - w / 2, cy - h / 2
+    for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+        d.text((x + ox - l, y + oy - t), text, font=f, fill=(0, 0, 0))
+    d.text((x - l, y - t), text, font=f, fill=fill)
+
+
+def _compose(gj: dict, highlight: list[str], box) -> tuple[Image.Image, tuple[float, float] | None]:
+    """Render one map state at final resolution (no year badge - callers add
+    that afterwards). Returns (image, highlighted-region centroid in px)."""
     box = _fit_box(box)
     proj = _Proj(box)
     img = Image.new("RGB", (_CW, _CH), _OCEAN)
@@ -386,45 +446,89 @@ def _render_one(gj: dict, highlight: list[str], box, year: int, out: Path) -> No
         wanted.extend(_wanted_terms(h))
     wanted = list(dict.fromkeys(wanted))
 
-    hi_feats, hi_subjects = [], set()
+    # project every feature once; reuse for land / borders / colour / labels
+    cache = []
     for feat in feats:
-        if wanted and _matches(feat, wanted):
-            hi_feats.append(feat)
-            p = feat.get("properties", {}) or {}
+        rings_px = []
+        for ring in _rings(feat.get("geometry", {})):
+            px = proj.ring_px(ring)
+            if px:
+                rings_px.append(px)
+        if not rings_px:
+            continue
+        xs = [p[0] for ring in rings_px for p in ring]
+        ys = [p[1] for ring in rings_px for p in ring]
+        bbox_px = (min(xs), min(ys), max(xs), max(ys))
+        area_px = (bbox_px[2] - bbox_px[0]) * (bbox_px[3] - bbox_px[1])
+        cache.append({"feat": feat, "rings": rings_px, "bbox": bbox_px, "area": area_px})
+
+    is_hi, hi_subjects = [], set()
+    for c in cache:
+        if wanted and _matches(c["feat"], wanted):
+            is_hi.append(c)
+            p = c["feat"].get("properties", {}) or {}
             if p.get("NAME"):
                 hi_subjects.add(_norm(str(p["NAME"])))
+    hi_ids = {id(c) for c in is_hi}
 
-    # 1) all land
-    for i, feat in enumerate(feats):
-        fill = _LAND if i % 2 else _LAND_ALT
-        for ring in _rings(feat.get("geometry", {})):
-            px = proj.ring_px(ring)
-            if px:
-                d.polygon(px, fill=fill)
+    # the biggest other NAMEd polities in view get their own colour
+    canvas_area = _CW * _CH
+    coloured = [c for c in cache
+                if id(c) not in hi_ids
+                and (c["feat"].get("properties", {}) or {}).get("NAME")
+                and c["area"] >= canvas_area * _MIN_COLOUR_AREA]
+    coloured.sort(key=lambda c: -c["area"])
+    coloured = coloured[:_MAX_COLOURED]
+    coloured_ids = {id(c) for c in coloured}
+    colour_of = {id(c): _polity_colour(str((c["feat"].get("properties") or {}).get("NAME")))
+                 for c in coloured}
+
+    # 1) land
+    for i, c in enumerate(cache):
+        fill = colour_of.get(id(c)) or (_LAND if i % 2 else _LAND_ALT)
+        for ring in c["rings"]:
+            d.polygon(ring, fill=fill)
     # 2) borders
-    for feat in feats:
-        for ring in _rings(feat.get("geometry", {})):
-            px = proj.ring_px(ring)
-            if px:
-                d.line(px + [px[0]], fill=_BORDER, width=max(1, _SS))
-    # 3) polities that answer to the same overlord (context), then the subject
-    for feat in feats:
-        p = feat.get("properties", {}) or {}
+    for c in cache:
+        for ring in c["rings"]:
+            d.line(ring + [ring[0]], fill=_BORDER, width=max(1, _SS))
+    # 3) polities that answer to the beat's subject's overlord (context)
+    for c in cache:
+        p = c["feat"].get("properties", {}) or {}
         subj = _norm(str(p.get("SUBJECTO", "")))
-        if subj and subj in hi_subjects and feat not in hi_feats:
-            for ring in _rings(feat.get("geometry", {})):
-                px = proj.ring_px(ring)
-                if px:
-                    d.polygon(px, fill=_NEIGHBOUR)
-    for feat in hi_feats:
-        for ring in _rings(feat.get("geometry", {})):
-            px = proj.ring_px(ring)
-            if px:
-                d.polygon(px, fill=_ACCENT)
-        for ring in _rings(feat.get("geometry", {})):
-            px = proj.ring_px(ring)
-            if px:
-                d.line(px + [px[0]], fill=_ACCENT_EDGE, width=max(2, 3 * _SS))
+        if subj and subj in hi_subjects and id(c) not in hi_ids:
+            for ring in c["rings"]:
+                d.polygon(ring, fill=_NEIGHBOUR)
+    # 4) the beat's subject, in the channel amber
+    hi_cx = hi_cy = hi_n = 0.0
+    for c in is_hi:
+        for ring in c["rings"]:
+            d.polygon(ring, fill=_ACCENT)
+        for ring in c["rings"]:
+            d.line(ring + [ring[0]], fill=_ACCENT_EDGE, width=max(2, 3 * _SS))
+        bx0, by0, bx1, by1 = c["bbox"]
+        hi_cx += (bx0 + bx1) / 2
+        hi_cy += (by0 + by1) / 2
+        hi_n += 1
+    centroid_px = (hi_cx / hi_n, hi_cy / hi_n) if hi_n else None
+
+    # labels: the subject, then the biggest coloured neighbours, if they fit
+    def _fits(c):
+        bx0, by0, bx1, by1 = c["bbox"]
+        return (bx1 - bx0) > _MIN_LABEL_BOX[0] * _SS and (by1 - by0) > _MIN_LABEL_BOX[1] * _SS
+
+    if is_hi:
+        big = max(is_hi, key=lambda c: c["area"])
+        if _fits(big):
+            bx0, by0, bx1, by1 = big["bbox"]
+            name = str((big["feat"].get("properties") or {}).get("NAME") or (highlight[0] if highlight else ""))
+            _label(d, name.upper(), (bx0 + bx1) / 2, (by0 + by1) / 2, int(40 * _SS), _TEXT)
+    for c in coloured[:4]:
+        if not _fits(c):
+            continue
+        bx0, by0, bx1, by1 = c["bbox"]
+        name = str((c["feat"].get("properties") or {}).get("NAME") or "")
+        _label(d, name.upper(), (bx0 + bx1) / 2, (by0 + by1) / 2, int(32 * _SS), _TEXT)
 
     # mask any geography that fell outside the focus box into clean ocean
     bx0, by0, bx1, by1 = proj.box_px
@@ -437,17 +541,56 @@ def _render_one(gj: dict, highlight: list[str], box, year: int, out: Path) -> No
     if bx1 < _CW - 1:
         d.rectangle([bx1, 0, _CW, _CH], fill=_OCEAN)
 
-    # vignette + year badge
+    # vignette
     vig = Image.new("L", (_CW, _CH), 0)
     ImageDraw.Draw(vig).ellipse(
         [-_CW * 0.30, -_CH * 0.18, _CW * 1.30, _CH * 1.18], fill=255)
     vig = vig.filter(ImageFilter.GaussianBlur(_CW // 12))
     dark = Image.new("RGB", (_CW, _CH), (0, 0, 0))
     img = Image.composite(img, Image.blend(img, dark, 0.55), vig)
-    _draw_badge(img, _year_label(year))
 
     img = img.resize((_W, _H), Image.LANCZOS)
-    img.save(out, "PNG")
+    centroid = (centroid_px[0] / _SS, centroid_px[1] / _SS) if centroid_px else None
+    return img, centroid
+
+
+def _reveal_mask(centroid: tuple[float, float] | None, t: float) -> Image.Image:
+    """A soft-edged circle, eased outward from `centroid` (or the canvas
+    centre), covering the whole frame by t=1 - the 'ink spreads' reveal."""
+    cx, cy = centroid or (_W / 2, _H / 2)
+    max_r = math.hypot(max(cx, _W - cx), max(cy, _H - cy)) * 1.05
+    r = max_r * (1 - (1 - t) ** 2)      # ease-out
+    m = Image.new("L", (_W, _H), 0)
+    ImageDraw.Draw(m).ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+    return m.filter(ImageFilter.GaussianBlur(max(2, _W // 60)))
+
+
+def _make_reveal_clip(prev_img: Image.Image, curr_img: Image.Image,
+                       centroid: tuple[float, float] | None, badge_text: str,
+                       dest: Path) -> str | None:
+    """Write an mp4 that dissolves prev_img into curr_img via a growing
+    circular reveal centred on the new territory, ending exactly on
+    curr_img (+ badge) so video.py can freeze on that last frame."""
+    _REVEAL_DIR.mkdir(parents=True, exist_ok=True)
+    for f in _REVEAL_DIR.glob("frame_*.png"):
+        f.unlink()
+    n = _REVEAL_FRAMES
+    for k in range(n):
+        t = (k + 1) / n
+        mask = _reveal_mask(centroid, t)
+        frame = Image.composite(curr_img, prev_img, mask)
+        _draw_badge(frame, badge_text)
+        frame.save(_REVEAL_DIR / f"frame_{k:03d}.png", "PNG")
+    try:
+        util.run([
+            "ffmpeg", "-y", "-framerate", str(_REVEAL_FPS), "-start_number", "0",
+            "-i", str(_REVEAL_DIR / "frame_%03d.png"),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(config.FPS),
+            str(dest),
+        ], quiet=True)
+    except SystemExit:
+        return None
+    return str(dest)
 
 
 # --------------------------------------------------------------------------- #
@@ -510,6 +653,7 @@ def render_beats(beats: list[dict], topic: str = "") -> list[dict] | None:
     last_box = default_box
     last_sig = None
     repeat = 0
+    prev = None   # (gj, highlight) of the previous beat, for the reveal clip
     for i, beat in enumerate(beats):
         try:
             year = int(beat["year"])
@@ -525,15 +669,35 @@ def render_beats(beats: list[dict], topic: str = "") -> list[dict] | None:
             repeat = repeat + 1 if sig == last_sig else 0
             last_sig = sig
             draw_box = _zoom_box(box, 0.12 * repeat) if repeat else box
-            dest = config.WORK / f"map_{i:02d}.png"
-            _render_one(gj, beat.get("highlight", []) or [], draw_box, _nearest_year(year), dest)
-            out.append({"kind": "image", "path": str(dest)})
-            hl = ", ".join(beat.get("highlight", []) or []) or "-"
-            print(f"[maps] beat {i}: {_year_label(_nearest_year(year))}  highlight={hl}")
+            highlight = beat.get("highlight", []) or []
+            badge = _year_label(_nearest_year(year))
+            curr_img, centroid = _compose(gj, highlight, draw_box)
+
+            if prev is not None:
+                prev_gj, prev_hl = prev
+                prev_img, _ = _compose(prev_gj, prev_hl, draw_box)
+                clip_path = _make_reveal_clip(
+                    prev_img, curr_img, centroid, badge, config.WORK / f"map_{i:02d}.mp4")
+            else:
+                clip_path = None
+
+            if clip_path:
+                out.append({"kind": "video", "path": clip_path, "hold_last": True})
+            else:
+                _draw_badge(curr_img, badge)
+                dest = config.WORK / f"map_{i:02d}.png"
+                curr_img.save(dest, "PNG")
+                out.append({"kind": "image", "path": str(dest)})
+
+            prev = (gj, highlight)
+            hl = ", ".join(highlight) or "-"
+            print(f"[maps] beat {i}: {badge}  highlight={hl}  "
+                  f"{'(reveal)' if clip_path else '(still)'}")
         except Exception as exc:  # noqa: BLE001
             print(f"[maps] beat {i} failed ({exc}); reusing previous frame")
             if out:
                 out.append(dict(out[-1]))
+                prev = None   # don't chain a reveal onto a reused/stale frame
             else:
                 return None
     return out

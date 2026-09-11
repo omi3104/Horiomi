@@ -334,27 +334,46 @@ artifact before trusting it on the cron.
 ### `map` mode (default) — an animated political-map sequence
 
 The short becomes a run of political maps: a starting map, a few turning
-points, the end state, one takeaway — the highlighted empire/country in the
-channel amber, the rest dark, a year badge, faint graticule, vignette, plus
-the usual Ken-Burns push, karaoke captions, keyword chyron, progress bar and
-music/SFX on top.
+points, the end state, one takeaway. Several named polities on screen get
+their own flat colour (not just "highlighted vs. a grey blob"), the beat's
+subject is filled in the channel amber with a name label, plus a year badge,
+faint graticule and vignette. Beats aren't a hard cut to the next still: the
+previous beat's borders are re-rendered into the same frame and a short
+"ink spreads outward from the growth point" clip carries the map from the
+old state into the new one, which then holds under the usual karaoke
+captions, keyword chyron, progress bar and music/SFX.
 
 - **Borders:** world GeoJSON snapshots from the
   [historical-basemaps](https://github.com/aourednik/historical-basemaps)
   project (CC-BY-SA 4.0), fetched at run time and cached (`work/maps_cache/`,
   also an Actions cache). The script writer is told which snapshot years
   exist and anchors each beat to the nearest one.
-- **Renderer:** `src/maps.py`, **Pillow only** — no matplotlib / geopandas /
-  cartopy, nothing added to `requirements.txt`. ~1s a frame.
+- **Renderer:** `src/maps.py` — Pillow for every frame, plus one plain
+  `ffmpeg -framerate ... -i frame_%03d.png ...` call per beat to turn the
+  ~14-frame reveal sequence into a short clip. Nothing added to
+  `requirements.txt`. `video.py`'s `_make_segment()` plays that clip once
+  then freezes on its last frame (`tpad`) for the rest of the beat's
+  speaking time (a `hold_last` media kind, alongside the existing
+  image/video ones).
+- **Colour:** the subject is always the channel amber; up to 6 other
+  large-enough named polities in view get a colour from a small fixed
+  palette, picked by a hash of their name so the same empire is always the
+  same colour across the whole video (and across videos). Name matching
+  goes through an alias table (`src/maps.py::_ALIASES`) with **word-boundary**
+  matching — e.g. "Sikh Empire" also matches the dataset's actual `"Sikhs"`
+  feature, and a short token like "han" can no longer accidentally match
+  inside "af**han**istan".
 - **Script:** `script_gen.build_map()` — each beat carries `year`,
   `highlight` (polity names as an atlas would label them) and `focus` (a
   named region to frame). `MAP_SUPERSAMPLE` (default 2) trades render time
-  for edge quality; `MAP_DATA_BASE` overrides the data mirror.
-- **v1 limits:** border snapshots are coarse (e.g. nothing between 1914 and
-  1920), the projection is a standard-parallel equirectangular (slight
-  high-latitude stretch), name matching is heuristic (an unmatched
-  `highlight` just leaves that beat's base map un-highlighted), and
-  antimeridian-crossing polygons are dropped rather than split.
+  for edge quality; `MAP_REVEAL_FRAMES` (default 14) and the reveal fps are
+  the other two knobs; `MAP_DATA_BASE` overrides the data mirror.
+- **v1.1 limits:** border snapshots are coarse (e.g. nothing between 1914
+  and 1920), the projection is a standard-parallel equirectangular (slight
+  high-latitude stretch), name matching is still heuristic beyond the alias
+  table (an unmatched `highlight` just leaves that beat's map un-highlighted
+  rather than erroring), and antimeridian-crossing polygons are dropped
+  rather than split.
 
 ### `dialogue` mode — two animated hosts
 

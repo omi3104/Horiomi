@@ -82,6 +82,7 @@ def _make_segment(idx: int, media: dict, dur: float) -> str:
     fin = f",fade=t=in:st=0:d={_FADE_IN}" if idx > 0 else ""
     common = ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS), "-an", "-y", str(seg)]
     is_img = media["kind"] == "image"
+    hold_last = not is_img and media.get("hold_last")
 
     if is_img:
         big = (f"scale={int(W*1.35)}:{int(H*1.35)}:force_original_aspect_ratio=increase,"
@@ -90,6 +91,15 @@ def _make_segment(idx: int, media: dict, dur: float) -> str:
         plain = (f"{big},zoompan=z='min(1.001+0.0012*on,1.18)':d=1:x='iw/2-(iw/zoom/2)':"
                  f"y='ih/2-(ih/zoom/2)':s={W}x{H},setsar=1,fps={FPS},{_GRADE}")
         base = ["ffmpeg", "-loop", "1", "-t", f"{dur}", "-i", media["path"]]
+    elif hold_last:
+        # a short pre-rendered clip (e.g. maps.py's ink-spread reveal): play it
+        # once, then freeze on its last frame for however long the beat needs -
+        # tpad extends the stream, -frames:v below caps the exact length.
+        v = (f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+             f"tpad=stop_mode=clone:stop_duration={max(1.0, dur)},"
+             f"fps={FPS},setsar=1,{_GRADE}")
+        fancy, plain = v + fin, v
+        base = ["ffmpeg", "-t", f"{dur}", "-i", media["path"]]
     else:
         v = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},setsar=1,{_GRADE}"
         fancy, plain = v + fin, v
