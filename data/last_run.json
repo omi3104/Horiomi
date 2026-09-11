@@ -1,112 +1,157 @@
 {
-  "date": "2026-09-08",
-  "generated_at": "2026-09-08T14:29:30.460070+00:00",
-  "topic": "Battle of Midway",
-  "topic_source": "wikipedia-top",
-  "topic_url": "https://en.wikipedia.org/wiki/Battle_of_Midway",
+  "date": "2026-09-11",
+  "generated_at": "2026-09-11T07:10:21.633380+00:00",
+  "topic": "sikh empire history",
+  "topic_source": "youtube-suggest",
+  "topic_url": "",
   "seo_terms": [
-    "battle of midway",
-    "battle of midway documentary",
-    "battle of midway footage",
-    "battle of midway animation",
-    "battle of midway full movie",
-    "battle of midway movie"
+    "sikh empire history",
+    "sikh empire history in english",
+    "sikh empire history study iq",
+    "sikh empire history in hindi",
+    "sikh empire history in punjabi",
+    "sikh empire history dhruv rathee"
   ],
-  "title": "Battle of Midway's hidden radio glitch that turned the tide",
-  "hook": "A broken Japanese radio transmission gave the Allies the decisive edge at the Battle of Midway.",
-  "description": "A broken Japanese radio transmission gave the Allies the decisive edge at the Battle of Midway. Discover the hidden glitch that changed history.\n\nSubscribe for more untold war stories.\n#BattleOfMidway #History #WWII #historyfacts #shorts",
+  "title": "Sikh Empire history - rise, peak and fall of Punjab's golden age",
+  "hook": "What if a modest warrior band transformed Punjab from a crumbling Mughal fringe into a mighty empire that stunned the British?",
+  "description": "Explore the rise, peak, and fall of the Sikh Empire-how a regional power reshaped South Asia in just five decades.\n\nSubscribe for more flash histories that map how borders reshape our world.\n#SikhEmpire #History #Maps #historyfacts #shorts",
   "tags": [
-    "Battle of Midway",
-    "World War II",
-    "Naval warfare",
-    "Codebreaking",
-    "Pacific Theater",
-    "battle of midway documentary",
-    "battle of midway footage",
-    "battle of midway animation",
-    "battle of midway full movie",
-    "battle of midway movie",
+    "Sikh Empire",
+    "Punjab history",
+    "Ranjit Singh",
+    "British Raj",
+    "South Asia",
+    "sikh empire history",
+    "sikh empire history in english",
+    "sikh empire history study iq",
+    "sikh empire history in hindi",
+    "sikh empire history in punjabi",
+    "sikh empire history dhruv rathee",
     "history",
     "history facts",
     "historical facts",
-    "ancient history",
-    "world history"
+    "ancient history"
   ],
   "hashtags": [
-    "#BattleOfMidway",
+    "#SikhEmpire",
     "#History",
-    "#WWII",
+    "#Maps",
     "#historyfacts",
     "#shorts"
   ],
   "beats": [
     {
-      "say": "You never heard how a broken Japanese radio set changed Midway's fate for the allies.",
-      "visual": "Japanese radio equipment 1942",
-      "keyword": "radio"
+      "say": "In 1700 Punjab splinters under weakened Mughal rule, while autonomous Sikh bands begin organizing their own territories.",
+      "keyword": "1700",
+      "year": 1700,
+      "highlight": [
+        "Mughal Empire",
+        "Sikh Confederacy"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "On June 4, 1942, a stray transmission revealed the Japanese fleet's exact position to U.S. scouts.",
-      "visual": "map of Pacific June 1942 Midway",
-      "keyword": "June 4, 1942"
+      "say": "By 1800 Maharaja Ranjit Singh unites the bands, declares Lahore his capital, and launches the Sikh Empire.",
+      "keyword": "1800",
+      "year": 1800,
+      "highlight": [
+        "Sikh Empire",
+        "Mughal Empire"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "The U.S. codebreakers, led by Commander Joseph Rochefort, used that clue to launch a daring ambush.",
-      "visual": "Joseph Rochefort codebreaking team",
-      "keyword": "Rochefort"
+      "say": "In 1805 his forces capture Amritsar, securing the spiritual heart of Sikhism and consolidating power.",
+      "keyword": "1805",
+      "year": 1805,
+      "highlight": [
+        "Sikh Empire"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "While Admiral Fletcher's carriers steamed north, a lone PBY patrol plane spotted the Japanese carriers looming.",
-      "visual": "PBY patrol plane over ocean 1942",
-      "keyword": "PBY"
+      "say": "The 1815 victory at the Battle of Multan drives the Afghans back, expanding the empire to the Khyber Pass.",
+      "keyword": "Multan",
+      "year": 1815,
+      "highlight": [
+        "Sikh Empire",
+        "Afghan Durrani Empire"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "At 10:22 a.m., dive-bombers from USS Enterprise crashed into Akagi's deck, igniting a fiery inferno.",
-      "visual": "USS Enterprise dive bombers Akagi",
-      "keyword": "Akagi"
+      "say": "By 1820 Ranjit crowns himself Maharaja, annexes Kashmir, and controls the Himalayas from Kashmir to the Khyber.",
+      "keyword": "Kashmir",
+      "year": 1815,
+      "highlight": [
+        "Sikh Empire",
+        "Kashmir"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "The Japanese lost four carriers-Akagi, Kaga, Soryu, and Hiryu-within minutes, crippling their air power.",
-      "visual": "Japanese carriers Akagi Kaga Soryu Hiryu",
-      "keyword": "carriers"
+      "say": "In 1829 the empire reaches its zenith, boasting a modernized army, navy on the Indus, and thriving trade.",
+      "keyword": "1829",
+      "year": 1815,
+      "highlight": [
+        "Sikh Empire"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "What many ignore: the U.S. lost 307 men, a tragic price that silenced the Pacific's roar.",
-      "visual": "U.S. casualties Midway 307",
-      "keyword": "307"
+      "say": "The 1845 First Anglo-Sikh War shatters the balance, forcing Ranjit's heirs into costly peace.",
+      "keyword": "1845",
+      "year": 1880,
+      "highlight": [
+        "Sikh Empire",
+        "British Empire"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "The battle's turning point wasn't the planes, but a mis-read Japanese signal that delayed their counterattack.",
-      "visual": "Japanese signal equipment 1942",
-      "keyword": "signal"
+      "say": "By 1849 after the Second Anglo-Sikh War, the British annex Punjab, ending sovereign rule forever.",
+      "keyword": "1849",
+      "year": 1880,
+      "highlight": [
+        "British Empire",
+        "Sikh Empire"
+      ],
+      "focus": "south asia"
     },
     {
-      "say": "That delay let the U.S. carriers strike again, sinking the last Japanese carrier, Hiryu, at dusk.",
-      "visual": "Hiryu sinking dusk 1942",
-      "keyword": "Hiryu"
-    },
-    {
-      "say": "Midway proved a single miscommunication could tip a war, reshaping the Pacific forever.",
-      "visual": "Pacific theater map 1942",
-      "keyword": "Pacific"
+      "say": "Surprisingly, the Sikh Empire's brief existence forged a legacy of secular governance that still shapes Indian Punjab today.",
+      "keyword": "legacy",
+      "year": 1880,
+      "highlight": [
+        "Sikh Empire"
+      ],
+      "focus": "south asia"
     }
   ],
   "timeline": [
     {
-      "year": 1942,
-      "label": "Battle of Midway begins June 4"
+      "year": 1700,
+      "label": "Mughal decline"
+    },
+    {
+      "year": 1800,
+      "label": "Ranjit Singh unites Punjab"
+    },
+    {
+      "year": 1849,
+      "label": "British annexation"
     }
   ],
-  "word_count": 175,
-  "duration_seconds": 72.6,
+  "word_count": 183,
+  "duration_seconds": 76.4,
   "target_window": [
     50,
     80
   ],
   "privacy": "private",
   "dry_run": false,
-  "video_id": "uO-fLyoWNJk",
-  "youtube_url": "https://youtu.be/uO-fLyoWNJk",
-  "studio_url": "https://studio.youtube.com/video/uO-fLyoWNJk/edit",
-  "uploaded_at": "2026-09-08T14:29:30.459501+00:00"
+  "video_id": "gJ5Sx55X91c",
+  "youtube_url": "https://youtu.be/gJ5Sx55X91c",
+  "studio_url": "https://studio.youtube.com/video/gJ5Sx55X91c/edit",
+  "uploaded_at": "2026-09-11T07:10:21.632733+00:00"
 }
