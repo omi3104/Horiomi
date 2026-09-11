@@ -1,157 +1,146 @@
 {
   "date": "2026-09-11",
-  "generated_at": "2026-09-11T07:10:21.633380+00:00",
-  "topic": "sikh empire history",
-  "topic_source": "youtube-suggest",
-  "topic_url": "",
+  "generated_at": "2026-09-11T07:33:40.000118+00:00",
+  "topic": "India–Pakistan war of 1965",
+  "topic_source": "on-this-day",
+  "topic_url": "https://en.wikipedia.org/wiki/India%E2%80%93Pakistan_war_of_1965",
   "seo_terms": [
-    "sikh empire history",
-    "sikh empire history in english",
-    "sikh empire history study iq",
-    "sikh empire history in hindi",
-    "sikh empire history in punjabi",
-    "sikh empire history dhruv rathee"
+    "india–pakistan war of 1965",
+    "india pakistan war 1965 by khan sir",
+    "india pakistan war 1965 tamil",
+    "india pakistan war 1965 full movie",
+    "india pakistan war 1965 telugu",
+    "india pakistan war 1965 movie",
+    "india–pakistan war of 1971",
+    "india pakistan war of 1971"
   ],
-  "title": "Sikh Empire history - rise, peak and fall of Punjab's golden age",
-  "hook": "What if a modest warrior band transformed Punjab from a crumbling Mughal fringe into a mighty empire that stunned the British?",
-  "description": "Explore the rise, peak, and fall of the Sikh Empire-how a regional power reshaped South Asia in just five decades.\n\nSubscribe for more flash histories that map how borders reshape our world.\n#SikhEmpire #History #Maps #historyfacts #shorts",
+  "title": "India-Pakistan war of 1965: the surprise air battle that changed the map",
+  "hook": "Discover how the 1965 India-Pakistan war's flashpoints reshaped borders and sparked an unexpected air power shift.",
+  "description": "India-Pakistan war of 1965 reshapes borders, air power and national pride in a surprising way.\n\nSubscribe for more map-driven history stories that reveal the hidden turns of empires.\n#IndiaPakistanWar #1965 #HistoryMaps #history #historyfacts #shorts #maps",
   "tags": [
-    "Sikh Empire",
-    "Punjab history",
-    "Ranjit Singh",
-    "British Raj",
+    "India",
+    "Pakistan",
+    "1965 war",
+    "Cold War",
     "South Asia",
-    "sikh empire history",
-    "sikh empire history in english",
-    "sikh empire history study iq",
-    "sikh empire history in hindi",
-    "sikh empire history in punjabi",
-    "sikh empire history dhruv rathee",
+    "india-pakistan war of 1965",
+    "india pakistan war 1965 by khan sir",
+    "india pakistan war 1965 tamil",
+    "india pakistan war 1965 full movie",
+    "india pakistan war 1965 telugu",
+    "india pakistan war 1965 movie",
+    "india-pakistan war of 1971",
+    "india pakistan war of 1971",
     "history",
-    "history facts",
-    "historical facts",
-    "ancient history"
+    "history facts"
   ],
   "hashtags": [
-    "#SikhEmpire",
-    "#History",
-    "#Maps",
+    "#IndiaPakistanWar",
+    "#1965",
+    "#HistoryMaps",
+    "#history",
     "#historyfacts",
-    "#shorts"
+    "#shorts",
+    "#maps"
   ],
   "beats": [
     {
-      "say": "In 1700 Punjab splinters under weakened Mughal rule, while autonomous Sikh bands begin organizing their own territories.",
-      "keyword": "1700",
-      "year": 1700,
+      "say": "In 1965, a sudden artillery clash at the Rann of Kutch reignites the dormant border feud.",
+      "keyword": "Rann of Kutch",
+      "year": 1960,
       "highlight": [
-        "Mughal Empire",
-        "Sikh Confederacy"
+        "India",
+        "Pakistan"
       ],
       "focus": "south asia"
     },
     {
-      "say": "By 1800 Maharaja Ranjit Singh unites the bands, declares Lahore his capital, and launches the Sikh Empire.",
-      "keyword": "1800",
-      "year": 1800,
+      "say": "Two weeks later, India launches Operation Gibraltar, sending infiltrators into Kashmir's rugged hills to spark rebellion.",
+      "keyword": "Operation Gibraltar",
+      "year": 1960,
       "highlight": [
-        "Sikh Empire",
-        "Mughal Empire"
+        "India",
+        "Pakistan"
+      ],
+      "focus": "india"
+    },
+    {
+      "say": "Pakistan retaliates with Operation Grand Slam, storming the strategically vital Akhnoor bridge, threatening Delhi's supply line.",
+      "keyword": "Akhnoor",
+      "year": 1965,
+      "highlight": [
+        "Pakistan",
+        "India"
+      ],
+      "focus": "india"
+    },
+    {
+      "say": "India counters by air, deploying Mystère jets that cripple Pakistani airfields at Sargodha, marking the first large-scale dogfight.",
+      "keyword": "Sargodha",
+      "year": 1965,
+      "highlight": [
+        "India",
+        "Pakistan"
       ],
       "focus": "south asia"
     },
     {
-      "say": "In 1805 his forces capture Amritsar, securing the spiritual heart of Sikhism and consolidating power.",
-      "keyword": "1805",
-      "year": 1805,
+      "say": "The conflict escalates to the naval arena as Indian destroyers block Karachi harbor, halting oil shipments.",
+      "keyword": "Karachi",
+      "year": 1965,
       "highlight": [
-        "Sikh Empire"
+        "India",
+        "Pakistan"
       ],
       "focus": "south asia"
     },
     {
-      "say": "The 1815 victory at the Battle of Multan drives the Afghans back, expanding the empire to the Khyber Pass.",
-      "keyword": "Multan",
-      "year": 1815,
+      "say": "UN-brokered ceasefire on September 22 freezes front lines, leaving Kashmir divided much as before.",
+      "keyword": "Ceasefire",
+      "year": 1965,
       "highlight": [
-        "Sikh Empire",
-        "Afghan Durrani Empire"
+        "India",
+        "Pakistan"
+      ],
+      "focus": "india"
+    },
+    {
+      "say": "Yet the war reshapes regional air power: India emerges with a modernized fighter fleet, Pakistan forced to buy French Mirage.",
+      "keyword": "Mirage",
+      "year": 1965,
+      "highlight": [
+        "India",
+        "Pakistan"
       ],
       "focus": "south asia"
     },
     {
-      "say": "By 1820 Ranjit crowns himself Maharaja, annexes Kashmir, and controls the Himalayas from Kashmir to the Khyber.",
-      "keyword": "Kashmir",
-      "year": 1815,
+      "say": "The surprising takeaway: despite heavy fighting, the 1965 war proves borders largely unchanged, but national pride soars.",
+      "keyword": "Pride",
+      "year": 1965,
       "highlight": [
-        "Sikh Empire",
-        "Kashmir"
-      ],
-      "focus": "south asia"
-    },
-    {
-      "say": "In 1829 the empire reaches its zenith, boasting a modernized army, navy on the Indus, and thriving trade.",
-      "keyword": "1829",
-      "year": 1815,
-      "highlight": [
-        "Sikh Empire"
-      ],
-      "focus": "south asia"
-    },
-    {
-      "say": "The 1845 First Anglo-Sikh War shatters the balance, forcing Ranjit's heirs into costly peace.",
-      "keyword": "1845",
-      "year": 1880,
-      "highlight": [
-        "Sikh Empire",
-        "British Empire"
-      ],
-      "focus": "south asia"
-    },
-    {
-      "say": "By 1849 after the Second Anglo-Sikh War, the British annex Punjab, ending sovereign rule forever.",
-      "keyword": "1849",
-      "year": 1880,
-      "highlight": [
-        "British Empire",
-        "Sikh Empire"
-      ],
-      "focus": "south asia"
-    },
-    {
-      "say": "Surprisingly, the Sikh Empire's brief existence forged a legacy of secular governance that still shapes Indian Punjab today.",
-      "keyword": "legacy",
-      "year": 1880,
-      "highlight": [
-        "Sikh Empire"
+        "India",
+        "Pakistan"
       ],
       "focus": "south asia"
     }
   ],
   "timeline": [
     {
-      "year": 1700,
-      "label": "Mughal decline"
-    },
-    {
-      "year": 1800,
-      "label": "Ranjit Singh unites Punjab"
-    },
-    {
-      "year": 1849,
-      "label": "British annexation"
+      "year": 1965,
+      "label": "War begins"
     }
   ],
-  "word_count": 183,
-  "duration_seconds": 76.4,
+  "word_count": 162,
+  "duration_seconds": 71.3,
   "target_window": [
     50,
     80
   ],
   "privacy": "private",
   "dry_run": false,
-  "video_id": "gJ5Sx55X91c",
-  "youtube_url": "https://youtu.be/gJ5Sx55X91c",
-  "studio_url": "https://studio.youtube.com/video/gJ5Sx55X91c/edit",
-  "uploaded_at": "2026-09-11T07:10:21.632733+00:00"
+  "video_id": "RsXL9s8LuLw",
+  "youtube_url": "https://youtu.be/RsXL9s8LuLw",
+  "studio_url": "https://studio.youtube.com/video/RsXL9s8LuLw/edit",
+  "uploaded_at": "2026-09-11T07:33:39.999533+00:00"
 }
