@@ -1,39 +1,37 @@
 {
-  "date": "2026-09-11",
-  "generated_at": "2026-09-11T14:14:02.915121+00:00",
-  "topic": "mamluk sultanate edit",
-  "topic_source": "youtube-suggest",
-  "topic_url": "",
+  "date": "2026-09-12",
+  "generated_at": "2026-09-12T14:12:55.380980+00:00",
+  "topic": "Albigensian Crusade in 1213",
+  "topic_source": "on-this-day",
+  "topic_url": "https://en.wikipedia.org/wiki/Albigensian_Crusade",
   "seo_terms": [
-    "mamluk sultanate edit",
-    "mamluk dynasty edit",
-    "mamluk sultanate",
-    "mamluk"
+    "albigensian heresy",
+    "albigensian crusade documentary"
   ],
-  "title": "Mamluk Sultanate Rise and Fall - How a Slave Army Shaped the Middle East",
-  "hook": "What if the Mamluk Sultanate, born of slave soldiers, reshaped the Middle East before vanishing forever in history?",
-  "description": "Mamluk sultanate edit reveals how slave soldiers forged a lasting empire across the Middle East.\n\nSubscribe for more bite-size map histories, hit the bell to never miss a border shift, and drop a comment on which forgotten empire you want to see next today again.\n#Mamluks #HistoryShorts #MapStory #history #historyfacts #shorts #maps",
+  "title": "Albigensian Crusade 1213: How a Heresy Shaped Southern France",
+  "hook": "A secret religious war erupts in 1213, redrawing Languedoc's borders and shocking medieval Europe forever.",
+  "description": "A secret religious war erupts in 1213, redrawing Languedoc's borders and shocking medieval Europe forever, as maps reveal the Albigensian Crusade's brutal legacy.\n\nSubscribe for more map-driven histories that reveal how borders and belief clash across time.\n#AlbigensianCrusade #HistoryMaps #MedievalEurope #history #historyfacts #shorts #maps",
   "tags": [
-    "Mamluk Sultanate",
-    "Middle East history",
-    "Map animation",
-    "Islamic empires",
-    "Ottoman Empire",
-    "mamluk sultanate edit",
-    "mamluk dynasty edit",
-    "mamluk",
+    "Albigensian Crusade",
+    "Cathar heresy",
+    "medieval France",
+    "crusades",
+    "historical maps",
+    "albigensian heresy",
+    "albigensian crusade documentary",
     "history",
     "history facts",
     "historical facts",
     "ancient history",
     "world history",
     "history shorts",
-    "map"
+    "map",
+    "history map"
   ],
   "hashtags": [
-    "#Mamluks",
-    "#HistoryShorts",
-    "#MapStory",
+    "#AlbigensianCrusade",
+    "#HistoryMaps",
+    "#MedievalEurope",
     "#history",
     "#historyfacts",
     "#shorts",
@@ -41,89 +39,119 @@
   ],
   "beats": [
     {
-      "say": "In 1279 the Mamluks seize Cairo, ending Ayyubid rule and establishing a warrior-led sultanate.",
-      "keyword": "Cairo 1279",
-      "year": 1279,
+      "say": "In 1209 the French crown and Pope Innocent III unite, marking the first map where Languedoc splinters under crusader banners.",
+      "keyword": "1209",
+      "year": 1200,
       "highlight": [
-        "Mamluk Sultanate",
-        "Ayyubid Sultanate"
+        "Kingdom of France",
+        "Cathar strongholds"
       ],
-      "focus": "egypt"
+      "focus": "southern france"
     },
     {
-      "say": "At Ain Jalut in 1260 the Mamluks halt the Mongol advance, securing the Levant for centuries.",
-      "keyword": "Ain Jalut",
-      "year": 1300,
+      "say": "By 1210 crusader forces under Simon de Montfort seize the fortified town of Béziers, its walls crumble and the map flashes red.",
+      "keyword": "Béziers",
+      "year": 1200,
       "highlight": [
-        "Mongol Empire",
-        "Mamluk Sultanate"
+        "Crusader army",
+        "Cathars"
       ],
-      "focus": "leviant"
+      "focus": "southern france"
     },
     {
-      "say": "In 1396 the Mamluks join the Ottoman victory at Nicopolis, demonstrating their pivotal role against European crusaders.",
-      "keyword": "Nicopolis",
-      "year": 1400,
+      "say": "In 1211 the decisive siege of Carcassonne forces the city to capitulate, turning its citadel into a crusader stronghold.",
+      "keyword": "Carcassonne",
+      "year": 1200,
       "highlight": [
-        "Ottoman Empire",
-        "Mamluk Sultanate"
+        "Crusader army",
+        "Cathar rebels"
       ],
-      "focus": "balkans"
+      "focus": "southern france"
     },
     {
-      "say": "By 1516 the Ottoman cannon crushes the Mamluk army at Marj Dabiq, ending their Syrian dominance.",
-      "keyword": "Marj Dabiq",
-      "year": 1500,
+      "say": "The 1212 Council of Toulouse formalizes the Inquisition, and the map now shades the newly-administered dioceses in violet.",
+      "keyword": "Toulouse",
+      "year": 1200,
       "highlight": [
-        "Ottoman Empire",
-        "Mamluk Sultanate"
+        "French Crown",
+        "Inquisition"
       ],
-      "focus": "levant"
+      "focus": "southern france"
     },
     {
-      "say": "By 1517 the Ottomans absorb Egypt, transforming the Mamluk Sultanate into provincial governors under Istanbul.",
-      "keyword": "1517",
-      "year": 1600,
+      "say": "At the Battle of Muret in 1213 Simon de Montfort crushes the Count of Toulouse, expanding crusader territory eastward.",
+      "keyword": "Muret",
+      "year": 1200,
       "highlight": [
-        "Ottoman Empire",
-        "Mamluk Sultanate"
+        "Simon de Montfort",
+        "Count of Toulouse"
       ],
-      "focus": "egypt"
+      "focus": "southern france"
     },
     {
-      "say": "Yet the Mamluk military ethos lives on, shaping Egypt's modern officer corps and elite cavalry traditions.",
-      "keyword": "legacy",
-      "year": 1800,
+      "say": "Later that year the crusaders raze the Cathar refuge at Minerve, its ruins appear as a black scar on the map.",
+      "keyword": "Minerve",
+      "year": 1200,
       "highlight": [
-        "Mamluk Sultanate"
+        "Crusader forces",
+        "Cathar survivors"
       ],
-      "focus": "egypt"
+      "focus": "southern france"
+    },
+    {
+      "say": "By 1215 the Papal legate imposes the Treaty of Meaux, sealing the French crown's control over most of Languedoc.",
+      "keyword": "Meaux",
+      "year": 1200,
+      "highlight": [
+        "Kingdom of France",
+        "Papacy"
+      ],
+      "focus": "southern france"
+    },
+    {
+      "say": "In 1229 the Treaty of Paris finally ends the war, but the map now shows isolated pockets of lingering Cathar belief.",
+      "keyword": "1229",
+      "year": 1200,
+      "highlight": [
+        "Kingdom of France",
+        "Cathar remnants"
+      ],
+      "focus": "southern france"
+    },
+    {
+      "say": "Surprisingly, the crusade's brutal tactics sowed the seeds of French centralization, a legacy that reshaped Europe for centuries.",
+      "keyword": "centralization",
+      "year": 1200,
+      "highlight": [
+        "Kingdom of France"
+      ],
+      "focus": "europe"
     }
   ],
   "timeline": [
     {
-      "year": 1260,
-      "label": "Mongol halt"
+      "year": 1209,
+      "label": "Crusade launched"
     },
     {
-      "year": 1396,
-      "label": "Nicopolis alliance"
+      "year": 1213,
+      "label": "Battle of Muret"
     },
     {
-      "year": 1517,
-      "label": "Ottoman Egypt"
+      "year": 1229,
+      "label": "Treaty of Paris"
     }
   ],
-  "word_count": 142,
-  "duration_seconds": 57.6,
+  "word_count": 206,
+  "duration_seconds": 65.7,
   "target_window": [
     50,
     80
   ],
   "privacy": "private",
   "dry_run": false,
-  "video_id": "2lJllwnFUuQ",
-  "youtube_url": "https://youtu.be/2lJllwnFUuQ",
-  "studio_url": "https://studio.youtube.com/video/2lJllwnFUuQ/edit",
-  "uploaded_at": "2026-09-11T14:14:02.914454+00:00"
+  "video_id": "e8Z8lbkD2kM",
+  "youtube_url": "https://youtu.be/e8Z8lbkD2kM",
+  "studio_url": "https://studio.youtube.com/video/e8Z8lbkD2kM/edit",
+  "uploaded_at": "2026-09-12T14:12:55.380401+00:00"
 }
