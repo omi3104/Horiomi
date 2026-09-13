@@ -1,37 +1,41 @@
 {
-  "date": "2026-09-12",
-  "generated_at": "2026-09-12T14:12:55.380980+00:00",
-  "topic": "Albigensian Crusade in 1213",
+  "date": "2026-09-13",
+  "generated_at": "2026-09-13T14:13:21.900140+00:00",
+  "topic": "Mexican–American War in 1847",
   "topic_source": "on-this-day",
-  "topic_url": "https://en.wikipedia.org/wiki/Albigensian_Crusade",
+  "topic_url": "https://en.wikipedia.org/wiki/Mexican%E2%80%93American_War",
   "seo_terms": [
-    "albigensian heresy",
-    "albigensian crusade documentary"
+    "mexican american war history",
+    "mexican american war in hindi",
+    "mexican american war in a nutshell",
+    "spanish american war in the philippines",
+    "spanish american war in tamil",
+    "spanish american war in the philippines 1898",
+    "spanish american war in hindi"
   ],
-  "title": "Albigensian Crusade 1213: How a Heresy Shaped Southern France",
-  "hook": "A secret religious war erupts in 1213, redrawing Languedoc's borders and shocking medieval Europe forever.",
-  "description": "A secret religious war erupts in 1213, redrawing Languedoc's borders and shocking medieval Europe forever, as maps reveal the Albigensian Crusade's brutal legacy.\n\nSubscribe for more map-driven histories that reveal how borders and belief clash across time.\n#AlbigensianCrusade #HistoryMaps #MedievalEurope #history #historyfacts #shorts #maps",
+  "title": "Mexican-American War 1847: How a Border Clash Redrew North America",
+  "hook": "A hidden map reveals how a 1840s border clash reshaped a continent.",
+  "description": "A hidden map reveals how a 1840s border clash reshaped a continent, uncovering the Mexican-American War's lasting impact.\n\nSubscribe for more map-driven histories that redraw the past in vivid detail.\n#MexicanAmericanWar #HistoryMaps #history #historyfacts #shorts #maps",
   "tags": [
-    "Albigensian Crusade",
-    "Cathar heresy",
-    "medieval France",
-    "crusades",
-    "historical maps",
-    "albigensian heresy",
-    "albigensian crusade documentary",
+    "Mexican-American War",
     "history",
+    "maps",
+    "war",
+    "19th century",
+    "mexican american war history",
+    "mexican american war in hindi",
+    "mexican american war in a nutshell",
+    "spanish american war in the philippines",
+    "spanish american war in tamil",
+    "spanish american war in the philippines 1898",
+    "spanish american war in hindi",
     "history facts",
     "historical facts",
-    "ancient history",
-    "world history",
-    "history shorts",
-    "map",
-    "history map"
+    "ancient history"
   ],
   "hashtags": [
-    "#AlbigensianCrusade",
+    "#MexicanAmericanWar",
     "#HistoryMaps",
-    "#MedievalEurope",
     "#history",
     "#historyfacts",
     "#shorts",
@@ -39,119 +43,111 @@
   ],
   "beats": [
     {
-      "say": "In 1209 the French crown and Pope Innocent III unite, marking the first map where Languedoc splinters under crusader banners.",
-      "keyword": "1209",
-      "year": 1200,
+      "say": "In 1821 Mexico emerges from Spanish rule, inheriting vast northern territories stretching to present-day Texas.",
+      "keyword": "1821",
+      "year": 1815,
       "highlight": [
-        "Kingdom of France",
-        "Cathar strongholds"
+        "Mexico"
       ],
-      "focus": "southern france"
+      "focus": "north america"
     },
     {
-      "say": "By 1210 crusader forces under Simon de Montfort seize the fortified town of Béziers, its walls crumble and the map flashes red.",
-      "keyword": "Béziers",
-      "year": 1200,
+      "say": "1845 sees the Republic of Texas vote for U.S. annexation, inflaming border disputes with Mexico.",
+      "keyword": "Annexation",
+      "year": 1880,
       "highlight": [
-        "Crusader army",
-        "Cathars"
+        "Texas",
+        "United States"
       ],
-      "focus": "southern france"
+      "focus": "north america"
     },
     {
-      "say": "In 1211 the decisive siege of Carcassonne forces the city to capitulate, turning its citadel into a crusader stronghold.",
-      "keyword": "Carcassonne",
-      "year": 1200,
+      "say": "In 1846 the United States declares war on Mexico, eyes the disputed Texas border.",
+      "keyword": "1846",
+      "year": 1815,
       "highlight": [
-        "Crusader army",
-        "Cathar rebels"
+        "United States",
+        "Mexico"
       ],
-      "focus": "southern france"
+      "focus": "north america"
     },
     {
-      "say": "The 1212 Council of Toulouse formalizes the Inquisition, and the map now shades the newly-administered dioceses in violet.",
-      "keyword": "Toulouse",
-      "year": 1200,
+      "say": "At Buena Vista in February 1847, General Zachary Taylor halts Santa Anna's advance, securing a tactical victory.",
+      "keyword": "Buena Vista",
+      "year": 1880,
       "highlight": [
-        "French Crown",
-        "Inquisition"
+        "United States",
+        "Mexico"
       ],
-      "focus": "southern france"
+      "focus": "north america"
     },
     {
-      "say": "At the Battle of Muret in 1213 Simon de Montfort crushes the Count of Toulouse, expanding crusader territory eastward.",
-      "keyword": "Muret",
-      "year": 1200,
+      "say": "September 1847 sees U.S. forces under Winfield Scott storm Mexico City, forcing the capital's surrender.",
+      "keyword": "Mexico City",
+      "year": 1880,
       "highlight": [
-        "Simon de Montfort",
-        "Count of Toulouse"
+        "United States",
+        "Mexico City"
       ],
-      "focus": "southern france"
+      "focus": "north america"
     },
     {
-      "say": "Later that year the crusaders raze the Cathar refuge at Minerve, its ruins appear as a black scar on the map.",
-      "keyword": "Minerve",
-      "year": 1200,
+      "say": "The 1848 Treaty of Guadalupe Hidalgo redraws the map, ceding California, New Mexico, Utah and more to America.",
+      "keyword": "Guadalupe Hidalgo",
+      "year": 1880,
       "highlight": [
-        "Crusader forces",
-        "Cathar survivors"
+        "United States",
+        "Mexico"
       ],
-      "focus": "southern france"
+      "focus": "north america"
     },
     {
-      "say": "By 1215 the Papal legate imposes the Treaty of Meaux, sealing the French crown's control over most of Languedoc.",
-      "keyword": "Meaux",
-      "year": 1200,
+      "say": "This conflict fuels Manifest Destiny, proving a war can legitimize continental ambition and future overseas ventures.",
+      "keyword": "Manifest Destiny",
+      "year": 1880,
       "highlight": [
-        "Kingdom of France",
-        "Papacy"
+        "United States"
       ],
-      "focus": "southern france"
+      "focus": "north america"
     },
     {
-      "say": "In 1229 the Treaty of Paris finally ends the war, but the map now shows isolated pockets of lingering Cathar belief.",
-      "keyword": "1229",
-      "year": 1200,
+      "say": "Even after defeat, Mexican guerrillas wage resistance in the Sierra Madre, refusing full surrender.",
+      "keyword": "Mexican resistance",
+      "year": 1880,
       "highlight": [
-        "Kingdom of France",
-        "Cathar remnants"
+        "Mexico"
       ],
-      "focus": "southern france"
-    },
-    {
-      "say": "Surprisingly, the crusade's brutal tactics sowed the seeds of French centralization, a legacy that reshaped Europe for centuries.",
-      "keyword": "centralization",
-      "year": 1200,
-      "highlight": [
-        "Kingdom of France"
-      ],
-      "focus": "europe"
+      "focus": "north america"
     }
   ],
   "timeline": [
     {
-      "year": 1209,
-      "label": "Crusade launched"
+      "year": 1821,
+      "label": "Mexican independence"
     },
     {
-      "year": 1213,
-      "label": "Battle of Muret"
+      "year": 1845,
+      "label": "Texas annexation"
     },
     {
-      "year": 1229,
-      "label": "Treaty of Paris"
+      "year": 1846,
+      "label": "War declared"
+    },
+    {
+      "year": 1848,
+      "label": "Treaty of Guadalupe Hidalgo"
     }
   ],
-  "word_count": 206,
-  "duration_seconds": 65.7,
+  "word_count": 148,
+  "duration_seconds": 66.6,
   "target_window": [
     50,
     80
   ],
   "privacy": "private",
   "dry_run": false,
-  "video_id": "e8Z8lbkD2kM",
-  "youtube_url": "https://youtu.be/e8Z8lbkD2kM",
-  "studio_url": "https://studio.youtube.com/video/e8Z8lbkD2kM/edit",
-  "uploaded_at": "2026-09-12T14:12:55.380401+00:00"
+  "video_id": "sODJJxK43Fc",
+  "youtube_url": "https://youtu.be/sODJJxK43Fc",
+  "studio_url": "https://studio.youtube.com/video/sODJJxK43Fc/edit",
+  "uploaded_at": "2026-09-13T14:13:21.899529+00:00"
 }
