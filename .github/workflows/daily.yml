@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       format:
-        description: "Video format (blank = repo default / map)"
+        description: "Video format (blank = repo default / slideshow)"
         required: false
         type: choice
         default: ""
@@ -83,12 +83,11 @@ jobs:
           TARGET_SECONDS_MAX: ${{ vars.TARGET_SECONDS_MAX || '80' }}
           TARGET_SECONDS: ${{ vars.TARGET_SECONDS }}
           TTS_RATE: ${{ vars.TTS_RATE || '8' }}
-          # format: map (animated political-map sequence) is the daily default.
-          # pipeline.py auto-falls-back to slideshow for that run if map mode
-          # errors, so this can't break the daily upload. Override with a repo
-          # Variable FORMAT=slideshow (or pick one in the Run workflow dropdown
-          # for a one-off).
-          FORMAT: ${{ github.event.inputs.format || vars.FORMAT || 'map' }}
+          # format: back to slideshow (proven) as the daily default - map mode
+          # had visual issues and a factual-attribution error on a sensitive
+          # topic, not worth the risk unresolved. map/dialogue are still
+          # selectable in the Run workflow dropdown for testing.
+          FORMAT: ${{ github.event.inputs.format || vars.FORMAT || 'slideshow' }}
           LANGUAGE: ${{ vars.LANGUAGE || 'en' }}
           CAPTION_SCRIPT: ${{ vars.CAPTION_SCRIPT || 'roman' }}
           SKEPTIC_VOICE: ${{ vars.SKEPTIC_VOICE }}

@@ -96,14 +96,17 @@ _DEFAULT_VOICES = {"en": "en-US-AndrewNeural", "ur": "ur-PK-AsadNeural"}
 VOICE = get("VOICE") or _DEFAULT_VOICES.get(LANGUAGE, _DEFAULT_VOICES["en"])
 GEO = get("GEO", "US")
 
-# --- format: map (default) | slideshow (proven) | dialogue (experimental) --
-# map      = an animated sequence of political-map stills (maps.py); how
-#            borders / empires moved over time. This is the daily default.
-# slideshow= one relevant image per beat with Ken-Burns motion.
+# --- format: slideshow (default, proven) | map | dialogue (experimental) --
+# slideshow= one relevant image per beat with Ken-Burns motion. This is the
+#            channel's proven format (the uploads that actually got
+#            traction) and the daily default again after map mode shipped
+#            both visual issues and a factual-attribution error on a
+#            sensitive topic - not worth the risk while unresolved.
+# map      = an animated sequence of political-map stills (maps.py).
 # dialogue = two cartoon hosts (skeptic + expert) debating the topic.
 # pipeline.py auto-falls-back to slideshow if map/dialogue errors, so a bad
-# day never loses the upload. Set FORMAT=slideshow to force the safe path.
-FORMAT = get("FORMAT", "map").lower()   # map | slideshow | dialogue
+# day never loses the upload either way.
+FORMAT = get("FORMAT", "slideshow").lower()   # slideshow | map | dialogue
 
 # --- map-mode look (maps.py, Pillow-only renderer) ------------------------
 # Border snapshots come from github.com/aourednik/historical-basemaps.

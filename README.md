@@ -322,16 +322,19 @@ after every build (including dry runs).
 
 ---
 
-## Formats: `map` (default), `slideshow`, `dialogue`
+## Formats: `slideshow` (default), `map`, `dialogue`
 
 Set `FORMAT` as a repo Variable, or pick it in the `format` dropdown on
-**Actions → daily-short → Run workflow**. If `map` or `dialogue` errors for
-any reason, `pipeline.py` automatically rebuilds that same day with
-`slideshow` — an experimental render never costs you the daily upload. Try a
-new format with **Run workflow → format → dry_run** first and check the
-artifact before trusting it on the cron.
+**Actions → daily-short → Run workflow**. `slideshow` is the proven default —
+it's what the channel's actual traction came from. `map` and `dialogue` are
+experimental; if either errors for any reason, `pipeline.py` automatically
+rebuilds that same day with `slideshow`, so trying one never costs you the
+daily upload. That said, map mode has an open factual-attribution problem
+(see below) — don't switch the daily default to it until that's resolved.
+Try a new format with **Run workflow → format → dry_run** first and check
+the artifact before trusting it on the cron.
 
-### `map` mode (default) — an animated political-map sequence
+### `map` mode (off by default — visual + accuracy issues open) — an animated political-map sequence
 
 The short becomes a run of political maps: a starting map, a few turning
 points, the end state, one takeaway. Several named polities on screen get
@@ -374,6 +377,15 @@ captions, keyword chyron, progress bar and music/SFX.
   table (an unmatched `highlight` just leaves that beat's map un-highlighted
   rather than erroring), and antimeridian-crossing polygons are dropped
   rather than split.
+- **Open problem — factual attribution:** `script_gen.build_map()` has no
+  fact-checking pass; on a 1965 India-Pakistan war topic it reversed which
+  side launched Operation Grand Slam. Named-operation / who-did-what
+  attribution is exactly where a general LLM can flip a claim confidently,
+  and it's highest-stakes on modern, heavily-fact-checked conflict topics.
+  **`FORMAT` defaults to `slideshow` until this has a real fix** (tighter
+  prompt guidance on attribution confidence, and/or excluding modern
+  India-Pakistan conflict topics from the auto-picker) - don't flip the
+  default back without one.
 
 ### `dialogue` mode — two animated hosts
 
