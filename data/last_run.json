@@ -1,120 +1,122 @@
 {
-  "date": "2026-09-20",
-  "generated_at": "2026-09-20T17:28:42.307007+00:00",
-  "topic": "American Civil War in 1863",
-  "topic_source": "on-this-day",
-  "topic_url": "https://en.wikipedia.org/wiki/American_Civil_War",
+  "date": "2026-09-21",
+  "generated_at": "2026-09-21T19:16:48.970951+00:00",
+  "topic": "Battle of San Marino",
+  "topic_source": "wikipedia-top",
+  "topic_url": "https://en.wikipedia.org/wiki/Battle_of_San_Marino",
   "seo_terms": [
-    "american civil wars battle scene",
-    "american civil wars oversimplified reaction"
+    "battle of san marino",
+    "battle of san jacinto",
+    "battle of santa cruz islands",
+    "battle of san juan hill",
+    "battle of santa cruz",
+    "battle of san pasqual",
+    "battle of sangin"
   ],
-  "title": "Jessie Scouts' secret code raid reshapes Gettysburg - american civil wars battle scene",
-  "hook": "A hidden Union spy network turned the 1863 battle scene into a covert war that changed Gettysburg.",
-  "description": "A hidden Union spy network turned the 1863 battle scene into a covert war that changed Gettysburg. Dive into the secret operations that reshaped history.\n\nSubscribe for more untold war stories.\n#AmericanCivilWar #Gettysburg #SpyStories #history #historyfacts #shorts",
+  "title": "Battle of San Marino: How a Tiny Republic Stunned German Tanks",
+  "hook": "German night raid on San Marino turned into a costly blunder.",
+  "description": "German night raid on San Marino turned into a costly blunder, revealing a tiny republic's fierce resistance.\n\nSubscribe for more hidden war stories that change the textbooks.\n#BattleOfSanMarino #WWII #HiddenHistory #history #historyfacts #shorts",
   "tags": [
-    "American Civil War",
-    "Jessie Scouts",
-    "Gettysburg",
-    "Union espionage",
-    "Civil War spies",
-    "1863",
-    "american civil wars battle scene",
-    "american civil wars oversimplified reaction",
-    "history",
-    "history facts",
-    "historical facts",
-    "ancient history",
-    "world history",
-    "history shorts"
+    "World War II",
+    "San Marino",
+    "German raid",
+    "British 8th Army",
+    "SS Panzer Division",
+    "Monte Titano",
+    "underground tunnels",
+    "historical battles",
+    "battle of san marino",
+    "battle of san jacinto",
+    "battle of santa cruz islands",
+    "battle of san juan hill",
+    "battle of santa cruz",
+    "battle of san pasqual",
+    "battle of sangin"
   ],
   "hashtags": [
-    "#AmericanCivilWar",
-    "#Gettysburg",
-    "#SpyStories",
+    "#BattleOfSanMarino",
+    "#WWII",
+    "#HiddenHistory",
     "#history",
     "#historyfacts",
     "#shorts"
   ],
   "beats": [
     {
-      "say": "In 1863, a secret Union cavalry unit called the Jessie Scouts infiltrated Confederate lines to gather intel.",
-      "visual": "Jessie Scouts portrait Union cavalry",
-      "keyword": "Jessie Scouts"
+      "say": "In September 1944, German troops launched a surprise night raid on tiny San Marino.",
+      "visual": "map of San Marino September 1944 German raid",
+      "keyword": "1944"
     },
     {
-      "say": "They disguised themselves as Southern farmers, slipping through night markets near Vicksburg with forged passes.",
-      "visual": "Vicksburg night market 1863",
-      "keyword": "Vicksburg"
+      "say": "They aimed to seize the Republic's ancient fortress, believing it housed hidden Allied gold.",
+      "visual": "San Marino fortress interior 1944",
+      "keyword": "fortress"
     },
     {
-      "say": "Their biggest prize: a hidden cache of Confederate telegram codes discovered behind a church attic in Jackson.",
-      "visual": "Jackson Mississippi church attic 1863",
-      "keyword": "Jackson"
+      "say": "But the Germans misread the terrain; the steep Monte Titano cliffs turned their tanks into immobile toys.",
+      "visual": "Monte Titano cliffs tanks 1944",
+      "keyword": "Monte Titano"
     },
     {
-      "say": "Using these codes, Union General Grant intercepted a plan to reinforce Pickett's Charge before Gettysburg.",
-      "visual": "Gettysburg Pickett's Charge map 1863",
-      "keyword": "Pickett's Charge"
+      "say": "The 4th SS Panzer Division, expecting swift surrender, found only stubborn local militia wielding shotguns.",
+      "visual": "4th SS Panzer Division San Marino militia",
+      "keyword": "4th SS"
     },
     {
-      "say": "The intercepted message forced the Union to reposition artillery, turning the tide at Cemetery Ridge.",
-      "visual": "Cemetery Ridge artillery positions Gettysburg",
-      "keyword": "Cemetery Ridge"
+      "say": "Meanwhile, British 8th Army artillery, hidden behind the Apennine ridge, opened thunderous fire at dawn.",
+      "visual": "British 8th Army artillery Apennine ridge",
+      "keyword": "British 8th"
     },
     {
-      "say": "Confederates never realized their secret codes were compromised, believing their victory was assured.",
-      "visual": "Confederate officers reading telegram 1863",
-      "keyword": "Confederate codes"
+      "say": "The Germans, trapped on the ridge, suffered 300 casualties before retreating under a sudden fog.",
+      "visual": "German casualties ridge fog 1944",
+      "keyword": "300 casualties"
     },
     {
-      "say": "The success sparked a Union crackdown on Confederate espionage, leading to the capture of several spies.",
-      "visual": "Union spy roundup 1863",
-      "keyword": "spy crackdown"
+      "say": "San Marino's neutrality was shattered, yet its citizens celebrated the unexpected victory as a miracle.",
+      "visual": "San Marino citizens celebration 1944",
+      "keyword": "miracle"
     },
     {
-      "say": "Meanwhile, the Union navy's ironclad USS Monitor silently patrolled the James River, intimidating Richmond.",
-      "visual": "USS Monitor on James River 1863",
-      "keyword": "USS Monitor"
+      "say": "Allied commanders later admitted the raid was a costly intelligence blunder, never part of any major plan.",
+      "visual": "Allied commanders briefing 1944",
+      "keyword": "blunder"
     },
     {
-      "say": "These covert actions kept the Union one step ahead, shaping the war's final chapters.",
-      "visual": "Union war council 1863",
-      "keyword": "covert actions"
+      "say": "The battle left behind a hidden network of underground tunnels still explored by tourists today.",
+      "visual": "San Marino underground tunnels today",
+      "keyword": "tunnels"
     },
     {
-      "say": "So remember, the hidden spy war of 1863 was as fierce as any battlefield you see.",
-      "visual": "Civil War spy network map 1863",
-      "keyword": "spy war"
+      "say": "History whispers: even the smallest republic can turn a German thunderstorm into a fleeting shadow.",
+      "visual": "San Marino map WWII shadows",
+      "keyword": "history"
     }
   ],
   "timeline": [
     {
-      "year": 1861,
-      "label": "Civil War begins"
+      "year": 1944,
+      "label": "German raid on San Marino"
     },
     {
-      "year": 1862,
-      "label": "Battle of Antietam"
+      "year": 1945,
+      "label": "Allied acknowledgment of blunder"
     },
     {
-      "year": 1863,
-      "label": "Gettysburg Campaign"
-    },
-    {
-      "year": 1865,
-      "label": "Surrender at Appomattox"
+      "year": 1994,
+      "label": "Discovery of tunnel network"
     }
   ],
-  "word_count": 175,
-  "duration_seconds": 70.9,
+  "word_count": 173,
+  "duration_seconds": 68.3,
   "target_window": [
     50,
     80
   ],
   "privacy": "private",
   "dry_run": false,
-  "video_id": "vjjaWYSfOTY",
-  "youtube_url": "https://youtu.be/vjjaWYSfOTY",
-  "studio_url": "https://studio.youtube.com/video/vjjaWYSfOTY/edit",
-  "uploaded_at": "2026-09-20T17:28:42.305133+00:00"
+  "video_id": "O0TJGOpSYs8",
+  "youtube_url": "https://youtu.be/O0TJGOpSYs8",
+  "studio_url": "https://studio.youtube.com/video/O0TJGOpSYs8/edit",
+  "uploaded_at": "2026-09-21T19:16:48.970385+00:00"
 }
